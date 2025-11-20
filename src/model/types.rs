@@ -797,6 +797,86 @@ impl FromStr for Element {
     }
 }
 
+impl fmt::Display for StandardResidue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let code = match self {
+            StandardResidue::ALA => "ALA",
+            StandardResidue::ARG => "ARG",
+            StandardResidue::ASN => "ASN",
+            StandardResidue::ASP => "ASP",
+            StandardResidue::CYS => "CYS",
+            StandardResidue::GLN => "GLN",
+            StandardResidue::GLU => "GLU",
+            StandardResidue::GLY => "GLY",
+            StandardResidue::HIS => "HIS",
+            StandardResidue::ILE => "ILE",
+            StandardResidue::LEU => "LEU",
+            StandardResidue::LYS => "LYS",
+            StandardResidue::MET => "MET",
+            StandardResidue::PHE => "PHE",
+            StandardResidue::PRO => "PRO",
+            StandardResidue::SER => "SER",
+            StandardResidue::THR => "THR",
+            StandardResidue::TRP => "TRP",
+            StandardResidue::TYR => "TYR",
+            StandardResidue::VAL => "VAL",
+            StandardResidue::A => "A",
+            StandardResidue::C => "C",
+            StandardResidue::G => "G",
+            StandardResidue::U => "U",
+            StandardResidue::I => "I",
+            StandardResidue::DA => "DA",
+            StandardResidue::DC => "DC",
+            StandardResidue::DG => "DG",
+            StandardResidue::DT => "DT",
+            StandardResidue::DI => "DI",
+            StandardResidue::HOH => "HOH",
+        };
+        write!(f, "{}", code)
+    }
+}
+
+impl FromStr for StandardResidue {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ALA" => Ok(StandardResidue::ALA),
+            "ARG" => Ok(StandardResidue::ARG),
+            "ASN" => Ok(StandardResidue::ASN),
+            "ASP" => Ok(StandardResidue::ASP),
+            "CYS" => Ok(StandardResidue::CYS),
+            "GLN" => Ok(StandardResidue::GLN),
+            "GLU" => Ok(StandardResidue::GLU),
+            "GLY" => Ok(StandardResidue::GLY),
+            "HIS" => Ok(StandardResidue::HIS),
+            "ILE" => Ok(StandardResidue::ILE),
+            "LEU" => Ok(StandardResidue::LEU),
+            "LYS" => Ok(StandardResidue::LYS),
+            "MET" => Ok(StandardResidue::MET),
+            "PHE" => Ok(StandardResidue::PHE),
+            "PRO" => Ok(StandardResidue::PRO),
+            "SER" => Ok(StandardResidue::SER),
+            "THR" => Ok(StandardResidue::THR),
+            "TRP" => Ok(StandardResidue::TRP),
+            "TYR" => Ok(StandardResidue::TYR),
+            "VAL" => Ok(StandardResidue::VAL),
+            "A" => Ok(StandardResidue::A),
+            "C" => Ok(StandardResidue::C),
+            "G" => Ok(StandardResidue::G),
+            "U" => Ok(StandardResidue::U),
+            "I" => Ok(StandardResidue::I),
+            "DA" => Ok(StandardResidue::DA),
+            "DC" => Ok(StandardResidue::DC),
+            "DG" => Ok(StandardResidue::DG),
+            "DT" => Ok(StandardResidue::DT),
+            "DI" => Ok(StandardResidue::DI),
+            "HOH" => Ok(StandardResidue::HOH),
+            _ => Err(format!("Invalid standard residue: {}", s)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
