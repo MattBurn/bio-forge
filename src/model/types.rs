@@ -212,3 +212,38 @@ impl FromStr for ResidueCategory {
         }
     }
 }
+
+impl ResiduePosition {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ResiduePosition::None => "None",
+            ResiduePosition::Internal => "Internal",
+            ResiduePosition::NTerminal => "N-Terminal",
+            ResiduePosition::CTerminal => "C-Terminal",
+            ResiduePosition::FivePrime => "5'-Terminal",
+            ResiduePosition::ThreePrime => "3'-Terminal",
+        }
+    }
+}
+
+impl fmt::Display for ResiduePosition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+impl FromStr for ResiduePosition {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "None" => Ok(ResiduePosition::None),
+            "Internal" => Ok(ResiduePosition::Internal),
+            "NTerminal" => Ok(ResiduePosition::NTerminal),
+            "CTerminal" => Ok(ResiduePosition::CTerminal),
+            "FivePrime" => Ok(ResiduePosition::FivePrime),
+            "ThreePrime" => Ok(ResiduePosition::ThreePrime),
+            _ => Err(format!("Invalid residue position: {}", s)),
+        }
+    }
+}
