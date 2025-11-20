@@ -183,3 +183,32 @@ impl FromStr for BondOrder {
         }
     }
 }
+
+impl ResidueCategory {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ResidueCategory::Standard => "Standard Residue",
+            ResidueCategory::Hetero => "Hetero Residue",
+            ResidueCategory::Ion => "Ion",
+        }
+    }
+}
+
+impl fmt::Display for ResidueCategory {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+impl FromStr for ResidueCategory {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Standard" => Ok(ResidueCategory::Standard),
+            "Hetero" => Ok(ResidueCategory::Hetero),
+            "Ion" => Ok(ResidueCategory::Ion),
+            _ => Err(format!("Invalid residue category: {}", s)),
+        }
+    }
+}
