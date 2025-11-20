@@ -1,0 +1,31 @@
+
+[package]
+name = "bio-forge"
+version = "0.1.0"
+authors = ["Tony Kan <tianchengkan@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/TKanX/bio-forge"
+edition = "2024"
+description = "A pure Rust library for the automated repair, preparation, and topology construction of biological macromolecules."
+keywords = [
+    "bioinformatics",
+    "chemoinformatics",
+    "proteins",
+    "nucleic-acids",
+    "pdb",
+]
+categories = ["science", "science::bioinformatics"]
+readme = "README.md"
+
+[dependencies]
+thiserror = "2.0.17"
+
+[lib]
+name = "bio_forge"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
