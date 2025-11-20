@@ -1,0 +1,30 @@
+[info]
+name = "HOH"
+standard_name = "HOH"
+charge = 0
+type = "Solvent"
+
+[[atoms]]
+name = "O"
+element = "O"
+pos = [-0.064, 0.000, 0.000]
+
+[[hydrogens]]
+name = "H1"
+pos = [0.512, 0.000, -0.776]
+anchors = ["O"]
+
+[[hydrogens]]
+name = "H2"
+pos = [0.512, 0.000, 0.776]
+anchors = ["O"]
+
+[[bonds]]
+a1 = "O"
+a2 = "H1"
+order = 1.0
+
+[[bonds]]
+a1 = "O"
+a2 = "H2"
+order = 1.0
