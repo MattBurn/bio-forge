@@ -142,3 +142,13 @@ pub enum ResidueCategory {
     Hetero,
     Ion,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ResiduePosition {
+    None,
+    Internal,
+    NTerminal,
+    CTerminal,
+    FivePrime,
+    ThreePrime,
+}
