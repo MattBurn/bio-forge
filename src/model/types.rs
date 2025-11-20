@@ -135,3 +135,10 @@ pub enum BondOrder {
     Triple,
     Aromatic,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ResidueCategory {
+    Standard,
+    Hetero,
+    Ion,
+}
