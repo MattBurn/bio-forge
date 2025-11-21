@@ -2,7 +2,6 @@
 name = "PRO"
 standard_name = "PRO"
 charge = 0
-type = "Protein"
 
 [[atoms]]
 name = "N"
@@ -77,69 +76,69 @@ anchors = ["CD", "CG", "N"]
 [[bonds]]
 a1 = "N"
 a2 = "CA"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "N"
 a2 = "CD"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "C"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "CB"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "HA"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C"
 a2 = "O"
-order = 2.0
+order = "Double"
 
 [[bonds]]
 a1 = "CB"
 a2 = "CG"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CB"
 a2 = "HB2"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CB"
 a2 = "HB3"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG"
 a2 = "CD"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG"
 a2 = "HG2"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG"
 a2 = "HG3"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CD"
 a2 = "HD2"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CD"
 a2 = "HD3"
-order = 1.0
+order = "Single"

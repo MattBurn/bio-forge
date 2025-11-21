@@ -2,7 +2,6 @@
 name = "TRP"
 standard_name = "TRP"
 charge = 0
-type = "Protein"
 
 [[atoms]]
 name = "N"
@@ -127,124 +126,124 @@ anchors = ["CH2", "CZ2", "CZ3"]
 [[bonds]]
 a1 = "N"
 a2 = "CA"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "N"
 a2 = "H"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "C"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "CB"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "HA"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C"
 a2 = "O"
-order = 2.0
+order = "Double"
 
 [[bonds]]
 a1 = "CB"
 a2 = "CG"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CB"
 a2 = "HB2"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CB"
 a2 = "HB3"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG"
 a2 = "CD1"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "CG"
 a2 = "CD2"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "CD1"
 a2 = "NE1"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "CD1"
 a2 = "HD1"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CD2"
 a2 = "CE2"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "CD2"
 a2 = "CE3"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "NE1"
 a2 = "CE2"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "NE1"
 a2 = "HE1"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CE2"
 a2 = "CZ2"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "CE3"
 a2 = "CZ3"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "CE3"
 a2 = "HE3"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CZ2"
 a2 = "CH2"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "CZ2"
 a2 = "HZ2"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CZ3"
 a2 = "CH2"
-order = 1.5
+order = "Aromatic"
 
 [[bonds]]
 a1 = "CZ3"
 a2 = "HZ3"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CH2"
 a2 = "HH2"
-order = 1.0
+order = "Single"

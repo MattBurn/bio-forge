@@ -2,7 +2,6 @@
 name = "HOH"
 standard_name = "HOH"
 charge = 0
-type = "Solvent"
 
 [[atoms]]
 name = "O"
@@ -22,9 +21,9 @@ anchors = ["O"]
 [[bonds]]
 a1 = "O"
 a2 = "H1"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "O"
 a2 = "H2"
-order = 1.0
+order = "Single"
