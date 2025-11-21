@@ -2,7 +2,6 @@
 name = "C"
 standard_name = "C"
 charge = -1
-type = "RNA"
 
 [[atoms]]
 name = "P"
@@ -162,159 +161,159 @@ anchors = ["C6", "N1", "C5"]
 [[bonds]]
 a1 = "P"
 a2 = "OP1"
-order = 2.0
+order = "Double"
 
 [[bonds]]
 a1 = "P"
 a2 = "OP2"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "P"
 a2 = "O5'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "O5'"
 a2 = "C5'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C5'"
 a2 = "C4'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C5'"
 a2 = "H5'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C5'"
 a2 = "H5''"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C4'"
 a2 = "O4'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C4'"
 a2 = "C3'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C4'"
 a2 = "H4'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "O4'"
 a2 = "C1'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C3'"
 a2 = "O3'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C3'"
 a2 = "C2'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C3'"
 a2 = "H3'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C2'"
 a2 = "O2'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C2'"
 a2 = "C1'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C2'"
 a2 = "H2'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "O2'"
 a2 = "HO2'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C1'"
 a2 = "N1"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C1'"
 a2 = "H1'"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "N1"
 a2 = "C2"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "N1"
 a2 = "C6"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C2"
 a2 = "O2"
-order = 2.0
+order = "Double"
 
 [[bonds]]
 a1 = "C2"
 a2 = "N3"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "N3"
 a2 = "C4"
-order = 2.0
+order = "Double"
 
 [[bonds]]
 a1 = "C4"
 a2 = "N4"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C4"
 a2 = "C5"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "N4"
 a2 = "H41"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "N4"
 a2 = "H42"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C5"
 a2 = "C6"
-order = 2.0
+order = "Double"
 
 [[bonds]]
 a1 = "C5"
 a2 = "H5"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C6"
 a2 = "H6"
-order = 1.0
+order = "Single"

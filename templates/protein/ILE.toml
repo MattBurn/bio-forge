@@ -2,7 +2,6 @@
 name = "ILE"
 standard_name = "ILE"
 charge = 0
-type = "Protein"
 
 [[atoms]]
 name = "N"
@@ -102,89 +101,89 @@ anchors = ["CD1", "CG1", "CB"]
 [[bonds]]
 a1 = "N"
 a2 = "CA"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "N"
 a2 = "H"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "C"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "CB"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CA"
 a2 = "HA"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "C"
 a2 = "O"
-order = 2.0
+order = "Double"
 
 [[bonds]]
 a1 = "CB"
 a2 = "CG1"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CB"
 a2 = "CG2"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CB"
 a2 = "HB"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG1"
 a2 = "CD1"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG1"
 a2 = "HG12"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG1"
 a2 = "HG13"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG2"
 a2 = "HG21"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG2"
 a2 = "HG22"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CG2"
 a2 = "HG23"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CD1"
 a2 = "HD11"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CD1"
 a2 = "HD12"
-order = 1.0
+order = "Single"
 
 [[bonds]]
 a1 = "CD1"
 a2 = "HD13"
-order = 1.0
+order = "Single"
