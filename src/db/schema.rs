@@ -34,7 +34,7 @@ pub struct TemplateHeavyAtom {
 pub struct TemplateHydrogen {
     pub name: String,
     pub pos: [f64; 3],
-    pub anchors: [String; 3],
+    pub anchors: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
