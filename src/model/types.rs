@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 pub type Point = Point3<f64>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize)]
 #[repr(u8)]
 pub enum Element {
     H = 1,
@@ -128,7 +128,7 @@ pub enum Element {
     Unknown = 0,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize)]
 pub enum StandardResidue {
     ALA,
     ARG,
@@ -163,7 +163,7 @@ pub enum StandardResidue {
     HOH,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize)]
 pub enum BondOrder {
     Single,
     Double,
