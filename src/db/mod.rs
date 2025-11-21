@@ -8,7 +8,7 @@ pub fn get_template(name: &str) -> Option<TemplateView> {
     store::get_store()
         .templates_by_name
         .get(name)
-        .map(|inner| TemplateView::new(inner))
+        .map(TemplateView::new)
 }
 
 #[derive(Debug, Clone, Copy)]
