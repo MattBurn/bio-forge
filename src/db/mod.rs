@@ -4,7 +4,7 @@ mod store;
 
 use crate::model::types::{BondOrder, Element, Point, StandardResidue};
 
-pub fn get_template(name: &str) -> Option<TemplateView> {
+pub fn get_template(name: &str) -> Option<TemplateView<'_>> {
     store::get_store()
         .templates_by_name
         .get(name)
