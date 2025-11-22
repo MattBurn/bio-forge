@@ -579,13 +579,13 @@ mod tests {
 
     #[test]
     fn read_supports_residues_with_insertion_codes() {
-        const PDB_DATA: &str = "\\
-            ATOM      1  N   SER E  10A      0.000   0.000   0.000  1.00 10.00           N\\n\\
-            ATOM      2  CA  SER E  10A      0.500   0.500   0.500  1.00 10.00           C\\n\\
-            ATOM      3  N   SER E  10       1.000   1.000   1.000  1.00 10.00           N\\n\\
-            ATOM      4  CA  SER E  10       1.500   1.500   1.500  1.00 10.00           C\\n\\
-            ATOM      5  N   SER E  11       2.000   2.000   2.000  1.00 10.00           N\\n\\
-            ATOM      6  CA  SER E  11       2.500   2.500   2.500  1.00 10.00           C\\n";
+        const PDB_DATA: &str = "\
+            ATOM      1  N   SER E  10A      0.000   0.000   0.000  1.00 10.00           N\n\
+            ATOM      2  CA  SER E  10A      0.500   0.500   0.500  1.00 10.00           C\n\
+            ATOM      3  N   SER E  10       1.000   1.000   1.000  1.00 10.00           N\n\
+            ATOM      4  CA  SER E  10       1.500   1.500   1.500  1.00 10.00           C\n\
+            ATOM      5  N   SER E  11       2.000   2.000   2.000  1.00 10.00           N\n\
+            ATOM      6  CA  SER E  11       2.500   2.500   2.500  1.00 10.00           C\n";
 
         let structure = parse_structure(PDB_DATA);
         let chain = structure.chain("E").expect("chain E exists");
