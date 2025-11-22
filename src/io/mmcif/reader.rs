@@ -331,15 +331,18 @@ fn process_atom_line(
         y_idx,
         z_idx,
     ];
-    if let Some(max_idx) = required_indices.iter().copied().max() {
-        if tokens.len() <= max_idx {
-            return Err(Error::parse(
-                "mmCIF",
-                None,
-                line_num,
-                "Atom record is shorter than declared _atom_site headers",
-            ));
-        }
+    if required_indices
+        .iter()
+        .copied()
+        .max()
+        .is_some_and(|max_idx| tokens.len() <= max_idx)
+    {
+        return Err(Error::parse(
+            "mmCIF",
+            None,
+            line_num,
+            "Atom record is shorter than declared _atom_site headers",
+        ));
     }
 
     let group_pdb = optional_token(tokens, indices.group_pdb, line_num)?;
