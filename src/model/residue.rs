@@ -5,6 +5,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Residue {
     pub id: i32,
+    pub insertion_code: Option<char>,
     pub name: String,
     pub standard_name: Option<StandardResidue>,
     pub category: ResidueCategory,
@@ -15,12 +16,14 @@ pub struct Residue {
 impl Residue {
     pub fn new(
         id: i32,
+        insertion_code: Option<char>,
         name: &str,
         standard_name: Option<StandardResidue>,
         category: ResidueCategory,
     ) -> Self {
         Self {
             id,
+            insertion_code,
             name: name.to_string(),
             standard_name,
             category,
@@ -91,11 +94,17 @@ impl Residue {
 
 impl fmt::Display for Residue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let insertion_code_str = self
+            .insertion_code
+            .map(|c| format!(" (ic: {})", c))
+            .unwrap_or_default();
+
         if let Some(std_name) = self.standard_name {
             write!(
                 f,
-                "Residue {{ id: {}, name: \"{}\" ({}), category: {}, atoms: {} }}",
+                "Residue {{ id: {}{}, name: \"{}\" ({}), category: {}, atoms: {} }}",
                 self.id,
+                insertion_code_str,
                 self.name,
                 std_name,
                 self.category,
@@ -104,8 +113,9 @@ impl fmt::Display for Residue {
         } else {
             write!(
                 f,
-                "Residue {{ id: {}, name: \"{}\", category: {}, atoms: {} }}",
+                "Residue {{ id: {}{}, name: \"{}\", category: {}, atoms: {} }}",
                 self.id,
+                insertion_code_str,
                 self.name,
                 self.category,
                 self.atom_count()
