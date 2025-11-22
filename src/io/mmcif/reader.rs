@@ -576,3 +576,276 @@ fn process_cell_parameters(params: &HashMap<String, String>) -> Option<[[f64; 3]
 
     Some([[v1_x, 0.0, 0.0], [v2_x, v2_y, 0.0], [v3_x, v3_y, v3_z]])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::io::context::IoContext;
+    use crate::model::types::{ResidueCategory, ResiduePosition, StandardResidue};
+    use std::io::Cursor;
+
+    const ATOM_SITE_HEADER: &str = "\
+        loop_\n\
+        _atom_site.group_PDB\n\
+        _atom_site.auth_atom_id\n\
+        _atom_site.auth_comp_id\n\
+        _atom_site.auth_asym_id\n\
+        _atom_site.auth_seq_id\n\
+        _atom_site.pdbx_PDB_ins_code\n\
+        _atom_site.Cartn_x\n\
+        _atom_site.Cartn_y\n\
+        _atom_site.Cartn_z\n\
+        _atom_site.occupancy\n\
+        _atom_site.type_symbol\n";
+
+    fn parse_structure(cif: &str) -> Structure {
+        let mut cursor = Cursor::new(cif.as_bytes());
+        let context = IoContext::new_default();
+        read(&mut cursor, &context).expect("mmCIF should parse")
+    }
+
+    fn parse_result(cif: &str) -> Result<Structure, Error> {
+        let mut cursor = Cursor::new(cif.as_bytes());
+        let context = IoContext::new_default();
+        read(&mut cursor, &context)
+    }
+
+    #[test]
+    fn read_parses_standard_polymer_and_box_vectors() {
+        let cell_block = "\
+            _cell.length_a 10.0\n\
+            _cell.length_b 12.0\n\
+            _cell.length_c 15.0\n\
+            _cell.angle_alpha 90.0\n\
+            _cell.angle_beta 90.0\n\
+            _cell.angle_gamma 90.0\n";
+        let rows = "\
+            ATOM N ALA A 1 ? 12.546 11.406 2.324 1.00 N\n\
+            ATOM CA ALA A 1 ? 13.123 12.345 3.210 1.00 C\n\
+            ATOM N GLY A 2 ? 14.789 10.654 4.890 1.00 N\n\
+            ATOM CA GLY A 2 ? 15.234 10.123 5.789 1.00 C\n";
+        let cif = format!(
+            "data_polymer\n{cell}\n{header}{rows}",
+            cell = cell_block,
+            header = ATOM_SITE_HEADER,
+            rows = rows
+        );
+
+        let structure = parse_structure(&cif);
+        assert_eq!(structure.chain_count(), 1);
+        assert_eq!(structure.residue_count(), 2);
+
+        let box_vectors = structure.box_vectors.expect("unit cell parsed");
+        assert!((box_vectors[0][0] - 10.0).abs() < 1e-6);
+        assert!((box_vectors[1][1] - 12.0).abs() < 1e-6);
+        assert!((box_vectors[2][2] - 15.0).abs() < 1e-6);
+
+        let chain = structure.chain("A").expect("chain A exists");
+        let residues: Vec<_> = chain.iter_residues().collect();
+        assert_eq!(residues.len(), 2);
+        assert_eq!(residues[0].name, "ALA");
+        assert_eq!(residues[0].position, ResiduePosition::NTerminal);
+        assert_eq!(residues[1].name, "GLY");
+        assert_eq!(residues[1].position, ResiduePosition::CTerminal);
+    }
+
+    #[test]
+    fn read_aliases_water_and_applies_occupancy_filter() {
+        let rows = "\
+            HETATM O WAT B 5 ? 0.000 0.000 0.000 0.30 O\n\
+            HETATM O WAT B 5 ? 1.000 1.000 1.000 0.80 O\n\
+            HETATM NA NA B 6 ? 5.000 5.000 5.000 1.00 NA\n";
+        let cif = format!(
+            "data_water\n{header}{rows}",
+            header = ATOM_SITE_HEADER,
+            rows = rows
+        );
+
+        let structure = parse_structure(&cif);
+        let chain = structure.chain("B").expect("chain B present");
+        assert_eq!(chain.residue_count(), 2);
+
+        let water = chain.residue(5, None).expect("water present");
+        assert_eq!(water.name, "HOH");
+        assert_eq!(water.category, ResidueCategory::Standard);
+        let oxygen = water.atom("O").expect("oxygen retained");
+        assert!((oxygen.pos.x - 1.0).abs() < 1e-6);
+
+        let ion = chain.residue(6, None).expect("ion present");
+        assert_eq!(ion.category, ResidueCategory::Ion);
+        assert_eq!(ion.atom_count(), 1);
+    }
+
+    #[test]
+    fn read_handles_scrambled_chain_and_residue_records() {
+        let rows = "\
+            ATOM CA GLY B 2 ? 14.000 10.000 9.000 1.00 C\n\
+            ATOM N GLY B 1 ? 13.000 11.000 8.000 1.00 N\n\
+            ATOM CA GLY B 1 ? 13.500 11.500 8.500 1.00 C\n\
+            ATOM N ALA A 1 ? 11.000 12.000 5.000 1.00 N\n\
+            ATOM CA ALA A 1 ? 11.500 12.500 5.500 1.00 C\n\
+            ATOM N ALA A 2 ? 12.000 13.000 6.000 1.00 N\n\
+            ATOM CA ALA A 2 ? 12.500 13.500 6.500 1.00 C\n\
+            ATOM N GLY B 2 ? 13.500 10.500 8.500 1.00 N\n";
+        let cif = format!(
+            "data_order\n{header}{rows}",
+            header = ATOM_SITE_HEADER,
+            rows = rows
+        );
+
+        let structure = parse_structure(&cif);
+        let chain_ids: Vec<_> = structure.iter_chains().map(|c| c.id.clone()).collect();
+        assert_eq!(chain_ids, vec!["B", "A"]);
+
+        let chain_b = structure.chain("B").unwrap();
+        let resid_b: Vec<_> = chain_b.iter_residues().map(|r| r.id).collect();
+        assert_eq!(resid_b, vec![1, 2]);
+
+        let chain_a = structure.chain("A").unwrap();
+        let resid_a: Vec<_> = chain_a.iter_residues().map(|r| r.id).collect();
+        assert_eq!(resid_a, vec![1, 2]);
+    }
+
+    #[test]
+    fn read_assigns_terminal_positions_for_polymers() {
+        let rows = "\
+            ATOM N GLY P 1 ? 1.000 2.000 3.000 1.00 N\n\
+            ATOM CA GLY P 1 ? 1.500 2.500 3.500 1.00 C\n\
+            HETATM O HOH P 2 ? 5.000 5.000 5.000 1.00 O\n\
+            ATOM N SER P 3 ? 2.500 3.500 4.500 1.00 N\n\
+            ATOM CA SER P 3 ? 3.000 4.000 5.000 1.00 C\n\
+            ATOM N LEU P 4 ? 4.000 5.000 6.000 1.00 N\n\
+            ATOM CA LEU P 4 ? 4.500 5.500 6.500 1.00 C\n\
+            ATOM P DA N 1 ? 6.000 1.000 1.000 1.00 P\n\
+            ATOM \"O5'\" DA N 1 ? 6.500 1.500 1.500 1.00 O\n\
+            ATOM P DT N 2 ? 7.000 2.000 2.000 1.00 P\n\
+            ATOM \"O5'\" DT N 2 ? 7.500 2.500 2.500 1.00 O\n";
+        let cif = format!(
+            "data_positions\n{header}{rows}",
+            header = ATOM_SITE_HEADER,
+            rows = rows
+        );
+
+        let structure = parse_structure(&cif);
+
+        let protein = structure.chain("P").expect("protein chain present");
+        let residues: Vec<_> = protein.iter_residues().collect();
+        assert_eq!(residues[0].position, ResiduePosition::NTerminal);
+        assert_eq!(residues[1].position, ResiduePosition::None);
+        assert_eq!(residues[2].position, ResiduePosition::Internal);
+        assert_eq!(residues[3].position, ResiduePosition::CTerminal);
+
+        let nucleic = structure.chain("N").expect("nucleic chain present");
+        let nuc_res: Vec<_> = nucleic.iter_residues().collect();
+        assert_eq!(nuc_res[0].position, ResiduePosition::FivePrime);
+        assert_eq!(nuc_res[1].position, ResiduePosition::ThreePrime);
+    }
+
+    #[test]
+    fn read_categorizes_residues_based_on_templates_and_atom_counts() {
+        let rows = "\
+            ATOM N GLY C 1 ? 9.000 9.000 9.000 1.00 N\n\
+            ATOM CA GLY C 1 ? 9.500 9.500 9.500 1.00 C\n\
+            HETATM O HOH C 2 ? 5.000 5.000 5.000 1.00 O\n\
+            HETATM C1 LIG C 301 ? 1.000 1.000 1.000 1.00 C\n\
+            HETATM O1 LIG C 301 ? 1.500 1.500 1.500 1.00 O\n\
+            HETATM NA NA C 401 ? 2.000 2.000 2.000 1.00 NA\n";
+        let cif = format!(
+            "data_categories\n{header}{rows}",
+            header = ATOM_SITE_HEADER,
+            rows = rows
+        );
+
+        let structure = parse_structure(&cif);
+        let chain = structure.chain("C").unwrap();
+
+        let protein = chain.residue(1, None).unwrap();
+        assert_eq!(protein.category, ResidueCategory::Standard);
+
+        let water = chain.residue(2, None).unwrap();
+        assert_eq!(water.standard_name, Some(StandardResidue::HOH));
+        assert_eq!(water.category, ResidueCategory::Standard);
+
+        let ligand = chain.residue(301, None).unwrap();
+        assert_eq!(ligand.category, ResidueCategory::Hetero);
+        assert_eq!(ligand.atom_count(), 2);
+
+        let ion = chain.residue(401, None).unwrap();
+        assert_eq!(ion.category, ResidueCategory::Ion);
+        assert_eq!(ion.atom_count(), 1);
+    }
+
+    #[test]
+    fn read_prefers_atoms_with_highest_occupancy_and_retains_hydrogens() {
+        let rows = "\
+            ATOM N GLY D 1 ? 0.000 0.000 0.000 1.00 N\n\
+            ATOM CA GLY D 1 ? 1.000 0.000 0.000 0.40 C\n\
+            ATOM CA GLY D 1 ? 2.000 0.000 0.000 0.80 C\n\
+            ATOM CA GLY D 1 ? 3.000 0.000 0.000 0.80 C\n\
+            ATOM H1 GLY D 1 ? 0.500 0.500 0.500 1.00 H\n";
+        let cif = format!(
+            "data_occupancy\n{header}{rows}",
+            header = ATOM_SITE_HEADER,
+            rows = rows
+        );
+
+        let structure = parse_structure(&cif);
+        let residue = structure.chain("D").unwrap().residue(1, None).unwrap();
+
+        let ca = residue.atom("CA").unwrap();
+        assert!((ca.pos.x - 2.0).abs() < 1e-6);
+        assert_eq!(residue.atom_count(), 3);
+        assert!(residue.atom("H1").is_some());
+    }
+
+    #[test]
+    fn read_supports_residues_with_insertion_codes() {
+        let rows = "\
+            ATOM N SER E 10 ? 0.000 0.000 0.000 1.00 N\n\
+            ATOM CA SER E 10 ? 0.500 0.500 0.500 1.00 C\n\
+            ATOM N SER E 10 A 1.000 1.000 1.000 1.00 N\n\
+            ATOM CA SER E 10 A 1.500 1.500 1.500 1.00 C\n\
+            ATOM N SER E 11 ? 2.000 2.000 2.000 1.00 N\n\
+            ATOM CA SER E 11 ? 2.500 2.500 2.500 1.00 C\n";
+        let cif = format!(
+            "data_insertions\n{header}{rows}",
+            header = ATOM_SITE_HEADER,
+            rows = rows
+        );
+
+        let structure = parse_structure(&cif);
+        let chain = structure.chain("E").unwrap();
+        let residues: Vec<_> = chain
+            .iter_residues()
+            .map(|r| (r.id, r.insertion_code))
+            .collect();
+        assert_eq!(residues, vec![(10, None), (10, Some('A')), (11, None)]);
+
+        let base = chain.residue(10, None).unwrap();
+        let insertion = chain.residue(10, Some('A')).unwrap();
+        assert_ne!(
+            base.atom("CA").unwrap().pos,
+            insertion.atom("CA").unwrap().pos
+        );
+    }
+
+    #[test]
+    fn read_errors_on_unknown_standard_atom_record() {
+        let rows = "\
+            ATOM N UNK C 1 ? 0.000 0.000 0.000 1.00 N\n";
+        let cif = format!(
+            "data_error\n{header}{rows}",
+            header = ATOM_SITE_HEADER,
+            rows = rows
+        );
+
+        let err = parse_result(&cif).expect_err("unknown residue should fail");
+        match err {
+            Error::UnknownStandardResidue { name, path } => {
+                assert_eq!(name, "UNK");
+                assert!(path.is_none());
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+}
