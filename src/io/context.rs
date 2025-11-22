@@ -436,4 +436,26 @@ mod tests {
         assert_eq!(context.map_to_standard("ala"), None);
         assert_eq!(context.map_to_standard("ALA"), Some(StandardResidue::ALA));
     }
+
+    #[test]
+    fn classify_residue_returns_canonical_and_standard() {
+        let context = IoContext::new_default();
+
+        let (name, standard) = context.classify_residue("WAT");
+        assert_eq!(name, "HOH");
+        assert_eq!(standard, Some(StandardResidue::HOH));
+
+        let (name, standard) = context.classify_residue("ALA");
+        assert_eq!(name, "ALA");
+        assert_eq!(standard, Some(StandardResidue::ALA));
+    }
+
+    #[test]
+    fn classify_residue_handles_unknowns() {
+        let context = IoContext::new_default();
+
+        let (name, standard) = context.classify_residue("LIG");
+        assert_eq!(name, "LIG");
+        assert!(standard.is_none());
+    }
 }
