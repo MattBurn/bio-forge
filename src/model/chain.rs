@@ -17,20 +17,25 @@ impl Chain {
 
     pub fn add_residue(&mut self, residue: Residue) {
         debug_assert!(
-            self.residue(residue.id).is_none(),
-            "Attempted to add a duplicate residue ID '{}' to chain '{}'",
+            self.residue(residue.id, residue.insertion_code).is_none(),
+            "Attempted to add a duplicate residue ID '{}' (ic: {:?}) to chain '{}'",
             residue.id,
+            residue.insertion_code,
             self.id
         );
         self.residues.push(residue);
     }
 
-    pub fn residue(&self, id: i32) -> Option<&Residue> {
-        self.residues.iter().find(|r| r.id == id)
+    pub fn residue(&self, id: i32, insertion_code: Option<char>) -> Option<&Residue> {
+        self.residues
+            .iter()
+            .find(|r| r.id == id && r.insertion_code == insertion_code)
     }
 
-    pub fn residue_mut(&mut self, id: i32) -> Option<&mut Residue> {
-        self.residues.iter_mut().find(|r| r.id == id)
+    pub fn residue_mut(&mut self, id: i32, insertion_code: Option<char>) -> Option<&mut Residue> {
+        self.residues
+            .iter_mut()
+            .find(|r| r.id == id && r.insertion_code == insertion_code)
     }
 
     pub fn residues(&self) -> &[Residue] {
