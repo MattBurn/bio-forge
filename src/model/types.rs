@@ -1276,4 +1276,20 @@ mod tests {
         assert!(StandardResidue::from_str("ALA ").is_err());
         assert!(StandardResidue::from_str("INVALID").is_err());
     }
+
+    #[test]
+    fn standard_residue_is_protein_classifies_correctly() {
+        assert!(StandardResidue::ALA.is_protein());
+        assert!(StandardResidue::GLY.is_protein());
+        assert!(!StandardResidue::HOH.is_protein());
+        assert!(!StandardResidue::A.is_protein());
+    }
+
+    #[test]
+    fn standard_residue_is_nucleic_classifies_correctly() {
+        assert!(StandardResidue::A.is_nucleic());
+        assert!(StandardResidue::DT.is_nucleic());
+        assert!(!StandardResidue::HOH.is_nucleic());
+        assert!(!StandardResidue::GLY.is_nucleic());
+    }
 }
