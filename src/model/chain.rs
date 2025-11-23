@@ -103,6 +103,16 @@ mod tests {
     use crate::model::atom::Atom;
     use crate::model::types::{Element, Point, ResidueCategory, StandardResidue};
 
+    fn sample_residue(id: i32, name: &str) -> Residue {
+        Residue::new(
+            id,
+            None,
+            name,
+            Some(StandardResidue::ALA),
+            ResidueCategory::Standard,
+        )
+    }
+
     #[test]
     fn chain_new_creates_correct_chain() {
         let chain = Chain::new("A");
@@ -502,5 +512,41 @@ mod tests {
             chain.residue(1, Some('A')).unwrap().insertion_code,
             Some('A')
         );
+    }
+
+    #[test]
+    fn chain_retain_residues_filters_using_predicate() {
+        let mut chain = Chain::new("A");
+        chain.add_residue(sample_residue(1, "ALA"));
+        chain.add_residue(sample_residue(2, "GLY"));
+        chain.add_residue(sample_residue(3, "SER"));
+
+        chain.retain_residues(|residue| residue.id % 2 == 1);
+
+        let ids: Vec<i32> = chain.iter_residues().map(|r| r.id).collect();
+        assert_eq!(ids, vec![1, 3]);
+    }
+
+    #[test]
+    fn chain_remove_residue_returns_removed_value() {
+        let mut chain = Chain::new("A");
+        chain.add_residue(sample_residue(5, "ALA"));
+        chain.add_residue(sample_residue(6, "GLY"));
+
+        let removed = chain.remove_residue(5, None);
+
+        assert!(removed.is_some());
+        assert_eq!(removed.unwrap().id, 5);
+        assert!(chain.residue(5, None).is_none());
+        assert_eq!(chain.residue_count(), 1);
+    }
+
+    #[test]
+    fn chain_remove_residue_returns_none_for_missing_entry() {
+        let mut chain = Chain::new("A");
+        chain.add_residue(sample_residue(5, "ALA"));
+
+        assert!(chain.remove_residue(42, None).is_none());
+        assert_eq!(chain.residue_count(), 1);
     }
 }
