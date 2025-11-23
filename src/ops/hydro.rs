@@ -128,10 +128,9 @@ fn determine_protonation_state(
         };
     }
 
-    if std == StandardResidue::HIS {
-        if matches!(residue.name.as_str(), "HIS" | "HID" | "HIE" | "HIP") {
-            return Some(select_neutral_his(structure, residue, &config.his_strategy));
-        }
+    if std == StandardResidue::HIS && matches!(residue.name.as_str(), "HIS" | "HID" | "HIE" | "HIP")
+    {
+        return Some(select_neutral_his(structure, residue, &config.his_strategy));
     }
 
     None
@@ -214,10 +213,10 @@ fn optimize_his_network(structure: &Structure, residue: &Residue) -> String {
                 }
 
                 for other_atom in other_res.iter_atoms() {
-                    if matches!(other_atom.element, Element::O | Element::N) {
-                        if atom.distance_squared(other_atom) < 3.5 * 3.5 {
-                            return true;
-                        }
+                    if matches!(other_atom.element, Element::O | Element::N)
+                        && atom.distance_squared(other_atom) < 3.5 * 3.5
+                    {
+                        return true;
                     }
                 }
             }
@@ -225,8 +224,8 @@ fn optimize_his_network(structure: &Structure, residue: &Residue) -> String {
         false
     };
 
-    let nd1_interaction = nd1.map(|a| has_acceptor_near(a)).unwrap_or(false);
-    let ne2_interaction = ne2.map(|a| has_acceptor_near(a)).unwrap_or(false);
+    let nd1_interaction = nd1.map(has_acceptor_near).unwrap_or(false);
+    let ne2_interaction = ne2.map(has_acceptor_near).unwrap_or(false);
 
     match (nd1_interaction, ne2_interaction) {
         (true, false) => "HID".to_string(),
@@ -266,16 +265,16 @@ fn construct_hydrogens_for_residue(
     }
 
     match residue.position {
-        ResiduePosition::NTerminal if residue.standard_name.map_or(false, |s| s.is_protein()) => {
+        ResiduePosition::NTerminal if residue.standard_name.is_some_and(|s| s.is_protein()) => {
             construct_n_term_hydrogens(residue, n_term_should_be_protonated(config))?;
         }
-        ResiduePosition::CTerminal if residue.standard_name.map_or(false, |s| s.is_protein()) => {
+        ResiduePosition::CTerminal if residue.standard_name.is_some_and(|s| s.is_protein()) => {
             construct_c_term_hydrogen(residue, c_term_should_be_protonated(config))?;
         }
-        ResiduePosition::ThreePrime if residue.standard_name.map_or(false, |s| s.is_nucleic()) => {
+        ResiduePosition::ThreePrime if residue.standard_name.is_some_and(|s| s.is_nucleic()) => {
             construct_3_prime_hydrogen(residue)?;
         }
-        ResiduePosition::FivePrime if residue.standard_name.map_or(false, |s| s.is_nucleic()) => {
+        ResiduePosition::FivePrime if residue.standard_name.is_some_and(|s| s.is_nucleic()) => {
             if !residue.has_atom("P") && residue.has_atom("O5'") {
                 construct_5_prime_hydrogen(residue)?;
             }
