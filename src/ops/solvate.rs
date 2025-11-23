@@ -417,3 +417,209 @@ impl SpatialGrid {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{
+        atom::Atom,
+        chain::Chain,
+        residue::Residue,
+        structure::Structure,
+        types::{Element, Point, ResidueCategory, StandardResidue},
+    };
+
+    #[test]
+    fn removes_existing_solvent_and_repositions_solute() {
+        let mut structure = Structure::new();
+
+        let mut chain_a = Chain::new("A");
+        let mut residue = Residue::new(
+            1,
+            None,
+            "ALA",
+            Some(StandardResidue::ALA),
+            ResidueCategory::Standard,
+        );
+        residue.add_atom(Atom::new("CA", Element::C, Point::new(1.0, 2.0, 3.0)));
+        residue.add_atom(Atom::new("CB", Element::C, Point::new(3.0, 4.0, 5.0)));
+        chain_a.add_residue(residue);
+        structure.add_chain(chain_a);
+
+        let mut solvent_chain = Chain::new("W");
+        let mut existing_water = Residue::new(
+            999,
+            None,
+            "HOH",
+            Some(StandardResidue::HOH),
+            ResidueCategory::Standard,
+        );
+        existing_water.add_atom(Atom::new("O", Element::O, Point::new(20.0, 20.0, 20.0)));
+        solvent_chain.add_residue(existing_water);
+        structure.add_chain(solvent_chain);
+
+        let mut ion_chain = Chain::new("I");
+        let mut ion = Residue::new(1000, None, "NA", None, ResidueCategory::Ion);
+        ion.add_atom(Atom::new("NA", Element::Na, Point::new(25.0, 25.0, 25.0)));
+        ion_chain.add_residue(ion);
+        structure.add_chain(ion_chain);
+
+        let config = SolvateConfig {
+            margin: 5.0,
+            water_spacing: 6.0,
+            vdw_cutoff: 1.5,
+            remove_existing: true,
+            cations: vec![],
+            anions: vec![],
+            target_charge: 0,
+            rng_seed: Some(42),
+        };
+
+        solvate_structure(&mut structure, &config).expect("solvation should succeed");
+
+        let solute_chain = structure.chain("A").expect("solute chain");
+        let mut min_coords = (f64::MAX, f64::MAX, f64::MAX);
+        for atom in solute_chain.iter_atoms() {
+            min_coords.0 = min_coords.0.min(atom.pos.x);
+            min_coords.1 = min_coords.1.min(atom.pos.y);
+            min_coords.2 = min_coords.2.min(atom.pos.z);
+        }
+
+        assert!((min_coords.0 - config.margin).abs() < 1e-6);
+        assert!((min_coords.1 - config.margin).abs() < 1e-6);
+        assert!((min_coords.2 - config.margin).abs() < 1e-6);
+
+        let box_vectors = structure.box_vectors.expect("box vectors");
+        assert!((box_vectors[0][0] - 12.0).abs() < 1e-6);
+        assert!((box_vectors[1][1] - 12.0).abs() < 1e-6);
+        assert!((box_vectors[2][2] - 12.0).abs() < 1e-6);
+
+        let has_legacy_ids = structure
+            .iter_chains()
+            .flat_map(|chain| chain.iter_residues())
+            .any(|res| res.id == 999 || res.id == 1000);
+        assert!(!has_legacy_ids);
+
+        let solvent_residues: Vec<_> = structure
+            .iter_chains()
+            .filter(|chain| chain.id.starts_with('W'))
+            .flat_map(|chain| chain.iter_residues())
+            .filter(|res| res.standard_name == Some(StandardResidue::HOH))
+            .collect();
+        assert!(!solvent_residues.is_empty());
+    }
+
+    #[test]
+    fn populates_expected_number_of_waters_for_uniform_grid() {
+        let mut structure = Structure::new();
+        let mut chain = Chain::new("A");
+        let mut residue = Residue::new(
+            1,
+            None,
+            "GLY",
+            Some(StandardResidue::GLY),
+            ResidueCategory::Standard,
+        );
+        residue.add_atom(Atom::new("CA", Element::C, Point::origin()));
+        chain.add_residue(residue);
+        structure.add_chain(chain);
+
+        let config = SolvateConfig {
+            margin: 4.0,
+            water_spacing: 4.0,
+            vdw_cutoff: 1.0,
+            remove_existing: true,
+            cations: vec![],
+            anions: vec![],
+            target_charge: 0,
+            rng_seed: Some(7),
+        };
+
+        solvate_structure(&mut structure, &config).expect("solvation should succeed");
+
+        let water_count = structure
+            .iter_chains()
+            .flat_map(|chain| chain.iter_residues())
+            .filter(|res| res.standard_name == Some(StandardResidue::HOH))
+            .count();
+
+        assert_eq!(water_count, 8);
+    }
+
+    #[test]
+    fn replaces_waters_with_anions_to_match_target_charge() {
+        let lys_charge = db::get_template("LYS").expect("LYS template").charge();
+        assert!(
+            lys_charge > 0,
+            "Test expects positively charged LYS template"
+        );
+
+        let mut structure = Structure::new();
+        let mut chain = Chain::new("A");
+        let mut residue = Residue::new(
+            1,
+            None,
+            "LYS",
+            Some(StandardResidue::LYS),
+            ResidueCategory::Standard,
+        );
+        residue.add_atom(Atom::new("NZ", Element::N, Point::origin()));
+        chain.add_residue(residue);
+        structure.add_chain(chain);
+
+        let config = SolvateConfig {
+            margin: 4.0,
+            water_spacing: 4.0,
+            vdw_cutoff: 1.0,
+            remove_existing: true,
+            cations: vec![],
+            anions: vec![Anion::Cl],
+            target_charge: 0,
+            rng_seed: Some(17),
+        };
+
+        solvate_structure(&mut structure, &config).expect("solvation should succeed");
+
+        let ion_residues: Vec<_> = structure
+            .iter_chains()
+            .flat_map(|chain| chain.iter_residues())
+            .filter(|res| res.category == ResidueCategory::Ion)
+            .collect();
+
+        assert_eq!(ion_residues.len() as i32, lys_charge);
+        assert!(ion_residues.iter().all(|res| res.name == "CL"));
+    }
+
+    #[test]
+    fn returns_box_too_small_when_insufficient_waters_for_target_charge() {
+        let gly_charge = db::get_template("GLY").expect("GLY template").charge();
+        assert_eq!(gly_charge, 0, "GLY should be neutral for this test");
+
+        let mut structure = Structure::new();
+        let mut chain = Chain::new("A");
+        let mut residue = Residue::new(
+            1,
+            None,
+            "GLY",
+            Some(StandardResidue::GLY),
+            ResidueCategory::Standard,
+        );
+        residue.add_atom(Atom::new("CA", Element::C, Point::origin()));
+        chain.add_residue(residue);
+        structure.add_chain(chain);
+
+        let config = SolvateConfig {
+            margin: 2.0,
+            water_spacing: 7.0,
+            vdw_cutoff: 0.1,
+            remove_existing: true,
+            cations: vec![Cation::Na],
+            anions: vec![],
+            target_charge: 2,
+            rng_seed: Some(5),
+        };
+
+        let result = solvate_structure(&mut structure, &config);
+        assert!(matches!(result, Err(Error::BoxTooSmall)));
+    }
+}
