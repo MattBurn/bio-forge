@@ -99,6 +99,20 @@ impl Structure {
         self.chains.iter_mut().flat_map(|c| c.iter_atoms_mut())
     }
 
+    pub fn retain_residues<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&str, &Residue) -> bool,
+    {
+        for chain in &mut self.chains {
+            let chain_id = chain.id.clone();
+            chain.retain_residues(|residue| f(&chain_id, residue));
+        }
+    }
+
+    pub fn prune_empty_chains(&mut self) {
+        self.chains.retain(|chain| !chain.is_empty());
+    }
+
     pub fn iter_atoms_with_context(
         &self,
     ) -> impl Iterator<Item = (&Chain, &Residue, &super::atom::Atom)> {
