@@ -32,8 +32,8 @@ const FORMAT: &str = "MOL2";
 ///
 /// # Errors
 ///
-/// Returns [`Error::Parse`](crate::io::error::Error::Parse) when the MOL2 syntax is invalid
-/// and [`Error::InconsistentData`](crate::io::error::Error::InconsistentData) when declared
+/// Returns [`Error::Parse`] when the MOL2 syntax is invalid
+/// and [`Error::InconsistentData`] when declared
 /// counts or references do not match the parsed content.
 ///
 /// # Examples
@@ -286,7 +286,7 @@ enum Section {
 ///
 /// # Errors
 ///
-/// Returns [`Error::Parse`](crate::io::error::Error::Parse) when either field is missing or
+/// Returns [`Error::Parse`] when either field is missing or
 /// cannot be converted into a `usize`.
 fn parse_expected_counts(line: &str, line_number: usize) -> Result<(usize, usize), Error> {
     let fields: Vec<&str> = line.split_whitespace().collect();
@@ -323,7 +323,7 @@ fn parse_expected_counts(line: &str, line_number: usize) -> Result<(usize, usize
 ///
 /// # Errors
 ///
-/// Returns [`Error::Parse`](crate::io::error::Error::Parse) for unsupported or malformed
+/// Returns [`Error::Parse`] for unsupported or malformed
 /// tokens.
 fn parse_bond_order_token(token: &str, line_number: usize) -> Result<BondOrder, Error> {
     match token.to_ascii_lowercase().as_str() {
