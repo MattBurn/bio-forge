@@ -548,7 +548,7 @@ mod tests {
     }
 
     #[test]
-    fn build_errors_when_user_template_missing() {
+    fn build_errors_when_hetero_template_missing() {
         let mut residue = Residue::new(1, None, "LIG", None, ResidueCategory::Hetero);
         residue.add_atom(Atom::new("C1", Element::C, Point::origin()));
 
@@ -556,13 +556,13 @@ mod tests {
         let err = TopologyBuilder::new().build(structure).unwrap_err();
 
         match err {
-            Error::MissingUserTemplate { res_name } => assert_eq!(res_name, "LIG"),
+            Error::MissingHeteroTemplate { res_name } => assert_eq!(res_name, "LIG"),
             other => panic!("unexpected error: {other:?}"),
         }
     }
 
     #[test]
-    fn build_uses_user_template_for_hetero_residue() {
+    fn build_uses_hetero_template_for_hetero_residue() {
         let template = Template::new(
             "LIG",
             vec!["C1".into(), "O1".into(), "H1".into()],
@@ -578,7 +578,7 @@ mod tests {
         residue.add_atom(Atom::new("H1", Element::H, Point::new(-1.0, 0.0, 0.0)));
 
         let structure = structure_from_residues(vec![residue]);
-        let builder = TopologyBuilder::new().add_template(template);
+        let builder = TopologyBuilder::new().add_hetero_template(template);
         let topology = builder.build(structure).expect("build topology");
 
         let c_idx = global_atom_index(&topology, "A", 1, "C1");
