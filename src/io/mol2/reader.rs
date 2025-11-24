@@ -1,11 +1,63 @@
+//! Parses Tripos MOL2 templates into [`Template`] instances.
+//!
+//! The reader focuses on ligand-sized building blocks that define atoms and bonds without
+//! coordinates. It validates identifiers, ensures counts match declarations, and converts
+//! textual bond orders into the canonical `BondOrder` enum so that templates integrate with
+//! repair and solvation pipelines.
+
 use crate::io::error::Error;
 use crate::model::template::Template;
 use crate::model::types::BondOrder;
 use std::collections::{BTreeMap, HashSet};
 use std::io::BufRead;
 
+/// Identifier used in diagnostics to reference the Tripos MOL2 format.
 const FORMAT: &str = "MOL2";
 
+/// Reads a MOL2 ligand template from any buffered reader.
+///
+/// The parser walks the `@<TRIPOS>` sections in order, collecting atom names and bond
+/// records and validating that identifiers, counts, and names meet the stricter
+/// requirements imposed by `bio-forge` templates. Duplicate names or references to missing
+/// atoms are rejected with descriptive parse errors, making it easier to diagnose corrupt
+/// ligand libraries.
+///
+/// # Arguments
+///
+/// * `reader` - A buffered text source positioned at the start of a MOL2 record.
+///
+/// # Returns
+///
+/// A fully populated [`Template`] containing atom names and bond topology.
+///
+/// # Errors
+///
+/// Returns [`Error::Parse`](crate::io::error::Error::Parse) when the MOL2 syntax is invalid
+/// and [`Error::InconsistentData`](crate::io::error::Error::InconsistentData) when declared
+/// counts or references do not match the parsed content.
+///
+/// # Examples
+///
+/// ```
+/// use bio_forge::io::read_mol2_template;
+/// use std::io::Cursor;
+///
+/// const LIGAND: &str = "\
+///     @<TRIPOS>MOLECULE\n\
+///     ETH\n\
+///     2 1 0 0 0\n\
+///     SMALL\n\
+///     NO_CHARGES\n\
+///     @<TRIPOS>ATOM\n\
+///         1 C1 0.0 0.0 0.0 C.3\n\
+///         2 C2 1.5 0.0 0.0 C.3\n\
+///     @<TRIPOS>BOND\n\
+///         1 1 2 1\n";
+///
+/// let template = read_mol2_template(Cursor::new(LIGAND.as_bytes())).unwrap();
+/// assert_eq!(template.name, "ETH");
+/// assert!(template.has_bond("C1", "C2"));
+/// ```
 pub fn read<R: BufRead>(reader: R) -> Result<Template, Error> {
     let mut section = Section::None;
     let mut molecule_lines_seen = 0usize;
@@ -206,13 +258,36 @@ pub fn read<R: BufRead>(reader: R) -> Result<Template, Error> {
     Ok(Template::new(name, atom_name_list, bonds))
 }
 
+/// Parser state corresponding to the current `@<TRIPOS>` section.
 enum Section {
+    /// No active section; lines are ignored until the next header.
     None,
+    /// `@<TRIPOS>MOLECULE` block containing metadata and expected counts.
     Molecule,
+    /// `@<TRIPOS>ATOM` block listing atom identifiers and labels.
     Atom,
+    /// `@<TRIPOS>BOND` block listing bond endpoints and orders.
     Bond,
 }
 
+/// Parses the count line that follows `@<TRIPOS>MOLECULE`.
+///
+/// The routine extracts the declared atom and bond counts, validating that both are
+/// positive integers so later comparisons can detect mismatches.
+///
+/// # Arguments
+///
+/// * `line` - The raw count line string with whitespace-separated integers.
+/// * `line_number` - The one-based line number for diagnostics.
+///
+/// # Returns
+///
+/// A tuple with the expected atom and bond counts.
+///
+/// # Errors
+///
+/// Returns [`Error::Parse`](crate::io::error::Error::Parse) when either field is missing or
+/// cannot be converted into a `usize`.
 fn parse_expected_counts(line: &str, line_number: usize) -> Result<(usize, usize), Error> {
     let fields: Vec<&str> = line.split_whitespace().collect();
     if fields.len() < 2 {
@@ -232,6 +307,24 @@ fn parse_expected_counts(line: &str, line_number: usize) -> Result<(usize, usize
     Ok((atoms, bonds))
 }
 
+/// Converts a MOL2 bond order token into a [`BondOrder`].
+///
+/// MOL2 encodes aromatic bonds as `ar`, so the helper lowercases the token and maps both
+/// textual and numeric representations to the internal enum.
+///
+/// # Arguments
+///
+/// * `token` - The bond order string found in the BOND section.
+/// * `line_number` - The one-based line number for diagnostics.
+///
+/// # Returns
+///
+/// The normalized [`BondOrder`] variant for the provided token.
+///
+/// # Errors
+///
+/// Returns [`Error::Parse`](crate::io::error::Error::Parse) for unsupported or malformed
+/// tokens.
 fn parse_bond_order_token(token: &str, line_number: usize) -> Result<BondOrder, Error> {
     match token.to_ascii_lowercase().as_str() {
         "1" | "single" => Ok(BondOrder::Single),
