@@ -1,14 +1,43 @@
+//! Fundamental atom representation comprising name, chemical element, and Cartesian position.
+//!
+//! This module defines the smallest structural unit used throughout `bio-forge`. Atoms are
+//! instantiated by IO readers, manipulated by topology operations, and rendered back into
+//! biomolecular formats. Distance helpers and translation utilities keep vector math inside
+//! the type, ensuring consistent use of the chosen coordinate system.
+
 use super::types::{Element, Point};
 use std::fmt;
 
+/// Labeled atom with immutable element identity and mutable position.
+///
+/// The struct is shared across residue, chain, and structure builders. Keeping the element
+/// metadata close to the coordinate allows downstream algorithms (e.g., heavy-atom filters
+/// or hydrogen placement) to reason locally without traversing additional tables.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Atom {
+    /// Atom name as it appears in crystallographic or modeling files (e.g., `CA`).
     pub name: String,
+    /// Chemical element derived from the periodic table definitions.
     pub element: Element,
+    /// Cartesian coordinates measured in ångströms.
     pub pos: Point,
 }
 
 impl Atom {
+    /// Creates a new atom from a name, element, and position.
+    ///
+    /// Caller controls ownership of the label string while the element enforces chemical
+    /// consistency. The position is copied as-is; no normalization is performed.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Atom label such as `"CA"` or `"OXT"`.
+    /// * `element` - `Element` variant describing the chemical identity.
+    /// * `pos` - `Point` describing the Cartesian coordinates in ångströms.
+    ///
+    /// # Returns
+    ///
+    /// A fully initialized `Atom` instance.
     pub fn new(name: &str, element: Element, pos: Point) -> Self {
         Self {
             name: name.to_string(),
@@ -17,14 +46,46 @@ impl Atom {
         }
     }
 
+    /// Computes the squared Euclidean distance to another atom.
+    ///
+    /// Prefer this when comparing relative distances or feeding cutoffs, as it avoids the
+    /// costly square-root step while remaining in ångström squared units.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Reference atom to measure against.
+    ///
+    /// # Returns
+    ///
+    /// The squared distance as `f64`.
     pub fn distance_squared(&self, other: &Atom) -> f64 {
         nalgebra::distance_squared(&self.pos, &other.pos)
     }
 
+    /// Computes the Euclidean distance to another atom.
+    ///
+    /// This is the fully realized length in ångströms and is suitable for reporting or
+    /// geometry calculations that require actual bond lengths.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Reference atom to measure against.
+    ///
+    /// # Returns
+    ///
+    /// The distance in ångströms as `f64`.
     pub fn distance(&self, other: &Atom) -> f64 {
         nalgebra::distance(&self.pos, &other.pos)
     }
 
+    /// Translates the atom by an arbitrary vector.
+    ///
+    /// The operation mutates the underlying position and is commonly used during rigid-body
+    /// transforms or when applying simulation displacements.
+    ///
+    /// # Arguments
+    ///
+    /// * `vector` - Translation expressed as a `nalgebra::Vector3<f64>` in ångströms.
     pub fn translate_by(&mut self, vector: &nalgebra::Vector3<f64>) {
         self.pos += vector;
     }

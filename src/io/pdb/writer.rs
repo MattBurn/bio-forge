@@ -1,3 +1,9 @@
+//! PDB writer utilities that serialize structures and topologies into fixed-width records.
+//!
+//! The module handles optional unit-cell information, deterministic atom serial numbering,
+//! TER record emission, and `CONECT` reconstruction from a [`Topology`] to ensure round-trip
+//! compatibility with downstream crystallography tools.
+
 use crate::io::error::Error;
 use crate::model::{
     atom::Atom, residue::Residue, structure::Structure, topology::Topology, types::ResidueCategory,
@@ -5,6 +11,38 @@ use crate::model::{
 use std::collections::HashMap;
 use std::io::Write;
 
+/// Writes a [`Structure`] to PDB format, including optional CRYST1 and TER records.
+///
+/// The function traverses chains in their stored order, emits `ATOM` records for polymeric
+/// residues, `HETATM` records for everything else, and appends a final `END` line so the file
+/// is ready for legacy toolchains.
+///
+/// # Arguments
+///
+/// * `writer` - Destination implementing [`Write`], such as a file or in-memory buffer.
+/// * `structure` - Source structure whose chains and atoms are serialized.
+///
+/// # Returns
+///
+/// [`Ok`] if writing succeeded; [`Error`] if IO failures occur.
+///
+/// # Examples
+///
+/// ```
+/// use bio_forge::io::{write_pdb_structure, IoContext, read_pdb_structure};
+/// use std::io::Cursor;
+///
+/// // Parse a minimal PDB and immediately write it back out.
+/// let pdb = "\
+/// ATOM      1  N   GLY A   1       0.000   0.000   0.000  1.00 20.00           N\n\
+/// END\n";
+/// let context = IoContext::new_default();
+/// let mut cursor = Cursor::new(pdb.as_bytes());
+/// let structure = read_pdb_structure(&mut cursor, &context).unwrap();
+/// let mut out = Vec::new();
+/// write_pdb_structure(&mut out, &structure).unwrap();
+/// assert!(String::from_utf8(out).unwrap().contains("END"));
+/// ```
 pub fn write_structure<W: Write>(writer: W, structure: &Structure) -> Result<(), Error> {
     let mut ctx = WriterContext::new(writer);
 
@@ -17,6 +55,43 @@ pub fn write_structure<W: Write>(writer: W, structure: &Structure) -> Result<(),
     Ok(())
 }
 
+/// Writes a [`Topology`] to PDB format, including `CONECT` bonding information.
+///
+/// This convenience helper mirrors [`write_structure`] for coordinate output, then traverses
+/// the topology graph to emit `CONECT` records that retain bonding data for visualization
+/// tools.
+///
+/// # Arguments
+///
+/// * `writer` - Output sink implementing [`Write`].
+/// * `topology` - Source topology whose structure and bonds are serialized.
+///
+/// # Returns
+///
+/// [`Ok`] if writing succeeded; [`Error`] if serialization or IO steps fail.
+///
+/// # Examples
+///
+/// ```
+/// use bio_forge::{Bond, BondOrder, Topology};
+/// use bio_forge::io::{write_pdb_topology, IoContext, read_pdb_structure};
+/// use std::io::Cursor;
+///
+/// let pdb = "\
+/// ATOM      1  N   GLY A   1       0.000   0.000   0.000  1.00 20.00           N\n\
+/// ATOM      2  CA  GLY A   1       1.000   0.000   0.000  1.00 20.00           C\n\
+/// END\n";
+/// let context = IoContext::new_default();
+/// let mut cursor = Cursor::new(pdb.as_bytes());
+/// let structure = read_pdb_structure(&mut cursor, &context).unwrap();
+/// let topo = Topology::new(
+///     structure.clone(),
+///     vec![Bond::new(0, 1, BondOrder::Single)],
+/// );
+/// let mut out = Vec::new();
+/// write_pdb_topology(&mut out, &topo).unwrap();
+/// assert!(String::from_utf8(out).unwrap().contains("CONECT"));
+/// ```
 pub fn write_topology<W: Write>(writer: W, topology: &Topology) -> Result<(), Error> {
     let mut ctx = WriterContext::new(writer);
     let structure = topology.structure();
@@ -39,6 +114,11 @@ struct WriterContext<W> {
 }
 
 impl<W: Write> WriterContext<W> {
+    /// Constructs a new writer state machine with cleared serial counters.
+    ///
+    /// # Arguments
+    ///
+    /// * `writer` - Output sink that will receive the generated PDB text.
     fn new(writer: W) -> Self {
         Self {
             writer,
@@ -47,6 +127,15 @@ impl<W: Write> WriterContext<W> {
         }
     }
 
+    /// Outputs a `CRYST1` record if orthogonal vectors are available.
+    ///
+    /// # Arguments
+    ///
+    /// * `box_vectors` - Optional 3×3 matrix of unit-cell vectors.
+    ///
+    /// # Returns
+    ///
+    /// [`Ok`] whether or not the record was emitted; [`Error`] only if IO fails.
     fn write_cryst1(&mut self, box_vectors: Option<[[f64; 3]; 3]>) -> Result<(), Error> {
         if let Some(vectors) = box_vectors {
             let v1 = nalgebra::Vector3::from(vectors[0]);
@@ -71,6 +160,11 @@ impl<W: Write> WriterContext<W> {
         Ok(())
     }
 
+    /// Writes all chain atoms and inserts `TER` records after the final standard residue.
+    ///
+    /// # Arguments
+    ///
+    /// * `structure` - Source structure providing chains, residues, and atoms.
     fn write_atoms(&mut self, structure: &Structure) -> Result<(), Error> {
         let mut global_idx = 0;
 
@@ -106,6 +200,15 @@ impl<W: Write> WriterContext<W> {
         Ok(())
     }
 
+    /// Formats a single `ATOM` or `HETATM` entry using the fixed-width PDB layout.
+    ///
+    /// # Arguments
+    ///
+    /// * `record_type` - Either `"ATOM  "` or `"HETATM"` depending on residue type.
+    /// * `serial` - Sequential atom serial number.
+    /// * `atom` - Atom instance providing coordinates and element.
+    /// * `residue` - Parent residue containing residue identifiers.
+    /// * `chain_id` - Author chain identifier string.
     fn write_atom_record(
         &mut self,
         record_type: &str,
@@ -149,6 +252,13 @@ impl<W: Write> WriterContext<W> {
         .map_err(|e| Error::from_io(e, None))
     }
 
+    /// Emits a `TER` record to terminate the current polymer chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `serial` - Serial number assigned to the TER record.
+    /// * `residue` - Residue that concludes the polymer chain.
+    /// * `chain_id` - Chain identifier owning the residue.
     fn write_ter_record(
         &mut self,
         serial: usize,
@@ -173,6 +283,16 @@ impl<W: Write> WriterContext<W> {
         .map_err(|e| Error::from_io(e, None))
     }
 
+    /// Serializes topology bonds into grouped `CONECT` records with deduplicated targets.
+    ///
+    /// # Arguments
+    ///
+    /// * `topology` - Topology providing bond definitions that should be written.
+    ///
+    /// # Returns
+    ///
+    /// [`Ok`] after writing all bonds or [`Error::InconsistentData`] if atom indices are
+    /// missing from the serial map.
     fn write_connects(&mut self, topology: &Topology) -> Result<(), Error> {
         let mut adjacency: HashMap<usize, Vec<usize>> = HashMap::new();
 
@@ -224,6 +344,11 @@ impl<W: Write> WriterContext<W> {
         Ok(())
     }
 
+    /// Appends the terminal `END` card.
+    ///
+    /// # Returns
+    ///
+    /// [`Ok`] when the line is written; [`Error`] if the underlying writer fails.
     fn write_end(&mut self) -> Result<(), Error> {
         writeln!(self.writer, "END   ").map_err(|e| Error::from_io(e, None))
     }

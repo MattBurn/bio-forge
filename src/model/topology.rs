@@ -1,15 +1,42 @@
+//! Graph-based description of bonded connectivity for `Structure` instances.
+//!
+//! The topology module stores canonicalized atom-to-atom bonds, exposes iterators for
+//! residue-level analysis, and provides helper utilities used by operations such as repair,
+//! hydrogen completion, and solvation to reason about neighboring atoms.
+
 use super::structure::Structure;
 use super::types::BondOrder;
 use std::fmt;
 
+/// Undirected bond connecting two atoms within a structure.
+///
+/// Bonds store canonical atom indices (ascending order) so equality, hashing, and sorting
+/// remain stable regardless of the order in which the connection was created.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Bond {
+    /// Index of the first atom (always the lesser index after canonicalization).
     pub a1_idx: usize,
+    /// Index of the second atom (greater-or-equal to `a1_idx`).
     pub a2_idx: usize,
+    /// Chemical multiplicity assigned to the bond.
     pub order: BondOrder,
 }
 
 impl Bond {
+    /// Creates a new bond while canonicalizing the endpoint ordering.
+    ///
+    /// The smaller atom index is stored in `a1_idx` to keep hashing and equality symmetric,
+    /// ensuring duplicated bonds collapse in sets and maps.
+    ///
+    /// # Arguments
+    ///
+    /// * `idx1` - Index of one bonded atom within the owning `Structure`.
+    /// * `idx2` - Index of the partner atom.
+    /// * `order` - Chemical bond order describing multiplicity or aromaticity.
+    ///
+    /// # Returns
+    ///
+    /// A `Bond` whose indices are sorted so `a1_idx <= a2_idx`.
     pub fn new(idx1: usize, idx2: usize, order: BondOrder) -> Self {
         if idx1 <= idx2 {
             Self {
@@ -27,6 +54,10 @@ impl Bond {
     }
 }
 
+/// Bond graph overlay for a [`Structure`].
+///
+/// A `Topology` pairs structural coordinates with explicit bonds, enabling neighbor queries,
+/// validation routines, and format writers that require connectivity information.
 #[derive(Debug, Clone)]
 pub struct Topology {
     structure: Structure,
@@ -34,6 +65,19 @@ pub struct Topology {
 }
 
 impl Topology {
+    /// Builds a topology from a structure and its associated bonds.
+    ///
+    /// Indices are assumed to reference atoms within the provided structure. A debug assert
+    /// validates this assumption in development builds to catch mismatched templates.
+    ///
+    /// # Arguments
+    ///
+    /// * `structure` - Fully instantiated structure containing all atoms.
+    /// * `bonds` - Canonical bond list describing connectivity.
+    ///
+    /// # Returns
+    ///
+    /// A `Topology` ready for neighbor queries and downstream processing.
     pub fn new(structure: Structure, bonds: Vec<Bond>) -> Self {
         debug_assert!(
             bonds.iter().all(|b| b.a2_idx < structure.atom_count()),
@@ -42,28 +86,66 @@ impl Topology {
         Self { structure, bonds }
     }
 
+    /// Exposes the underlying structure.
+    ///
+    /// # Returns
+    ///
+    /// Immutable reference to the wrapped [`Structure`].
     pub fn structure(&self) -> &Structure {
         &self.structure
     }
 
+    /// Returns all bonds present in the topology.
+    ///
+    /// # Returns
+    ///
+    /// Slice containing every [`Bond`], preserving insertion order.
     pub fn bonds(&self) -> &[Bond] {
         &self.bonds
     }
 
+    /// Counts the number of stored bonds.
+    ///
+    /// # Returns
+    ///
+    /// Total number of bonds in the topology.
     pub fn bond_count(&self) -> usize {
         self.bonds.len()
     }
 
+    /// Counts the atoms tracked by the underlying structure.
+    ///
+    /// # Returns
+    ///
+    /// Number of atoms derived from the wrapped structure.
     pub fn atom_count(&self) -> usize {
         self.structure.atom_count()
     }
 
+    /// Iterates over all bonds incident to a specific atom.
+    ///
+    /// # Arguments
+    ///
+    /// * `atom_idx` - Index of the atom whose incident bonds should be returned.
+    ///
+    /// # Returns
+    ///
+    /// Iterator yielding references to [`Bond`] instances connected to `atom_idx`.
     pub fn bonds_of(&self, atom_idx: usize) -> impl Iterator<Item = &Bond> {
         self.bonds
             .iter()
             .filter(move |b| b.a1_idx == atom_idx || b.a2_idx == atom_idx)
     }
 
+    /// Enumerates the neighboring atom indices for the provided atom.
+    ///
+    /// # Arguments
+    ///
+    /// * `atom_idx` - Index of the atom whose neighbors will be traversed.
+    ///
+    /// # Returns
+    ///
+    /// Iterator producing the indices of atoms bonded to `atom_idx`.
     pub fn neighbors_of(&self, atom_idx: usize) -> impl Iterator<Item = usize> + '_ {
         self.bonds_of(atom_idx).map(move |b| {
             if b.a1_idx == atom_idx {
@@ -76,6 +158,9 @@ impl Topology {
 }
 
 impl fmt::Display for Topology {
+    /// Formats the topology by reporting the atom and bond counts.
+    ///
+    /// This user-friendly summary is leveraged in logs and debugging output.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

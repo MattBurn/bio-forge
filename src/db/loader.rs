@@ -1,10 +1,28 @@
+//! Loads bundled residue templates from TOML resources into the in-memory store.
+//!
+//! This module performs eager deserialization of every template embedded in the crate at
+//! compile time. The resulting [`DataStore`] powers higher-level APIs such as
+//! [`TemplateView`](crate::db::TemplateView), ensuring template metadata and topology are
+//! always available without touching the filesystem at runtime.
+
 use super::schema::ResidueTemplateFile;
 use super::store::{DataStore, InternalTemplate};
 use std::collections::HashMap;
 
+/// Deserializes every bundled template and returns a populated [`DataStore`].
+///
+/// Templates are embedded by `include_str!` so this routine never performs IO at runtime.
+/// It panics when template files contain invalid TOML or share duplicated names, forcing
+/// such issues to be caught during development. Consumers should call
+/// [`crate::db::get_template`] instead of invoking this loader directly.
+///
+/// # Returns
+///
+/// A [`DataStore`] populated with template names mapped to their parsed content.
 pub fn load_all_templates() -> DataStore {
     let mut templates_by_name = HashMap::new();
 
+    // Inline macro keeps the list of template files concise while preserving panic context.
     macro_rules! load_template {
         ($path:literal) => {
             let content = include_str!(concat!("../../templates/", $path));
@@ -145,7 +163,7 @@ mod tests {
         let mut templates = HashMap::new();
         let content = create_minimal_template("TEST", "ALA");
 
-        let result = load_template_from_content(&content, &mut templates);
+        let result = load_template_from_content(content.as_str(), &mut templates);
 
         assert!(result.is_ok());
         assert_eq!(templates.len(), 1);
@@ -162,7 +180,7 @@ mod tests {
         let mut templates = HashMap::new();
         let content = create_template_with_bonds("BONDED", "GLY");
 
-        let result = load_template_from_content(&content, &mut templates);
+        let result = load_template_from_content(content.as_str(), &mut templates);
 
         assert!(result.is_ok());
         assert_eq!(templates.len(), 1);
@@ -196,7 +214,7 @@ mod tests {
             anchors = ["C1"]
             "#;
 
-        let result = load_template_from_content(&content, &mut templates);
+        let result = load_template_from_content(content, &mut templates);
 
         assert!(result.is_ok());
         assert_eq!(templates.len(), 1);
@@ -212,12 +230,12 @@ mod tests {
         let mut templates = HashMap::new();
 
         let content1 = create_minimal_template("DUPLICATE", "ALA");
-        let result1 = load_template_from_content(&content1, &mut templates);
+        let result1 = load_template_from_content(content1.as_str(), &mut templates);
         assert!(result1.is_ok());
         assert_eq!(templates.len(), 1);
 
         let content2 = create_minimal_template("DUPLICATE", "GLY");
-        let result2 = load_template_from_content(&content2, &mut templates);
+        let result2 = load_template_from_content(content2.as_str(), &mut templates);
 
         assert!(result2.is_err());
         assert!(
@@ -238,7 +256,7 @@ mod tests {
             charge = 0
             "#;
 
-        let result = load_template_from_content(&invalid_content, &mut templates);
+        let result = load_template_from_content(invalid_content, &mut templates);
 
         assert!(result.is_err());
         assert!(
@@ -259,7 +277,7 @@ mod tests {
             pos = [0.0, 0.0, 0.0]
             "#;
 
-        let result = load_template_from_content(&invalid_content, &mut templates);
+        let result = load_template_from_content(invalid_content, &mut templates);
 
         assert!(result.is_err());
         assert!(
@@ -286,7 +304,7 @@ mod tests {
             pos = [0.0, 0.0, 0.0]
             "#;
 
-        let result = load_template_from_content(&content_with_unknown, &mut templates);
+        let result = load_template_from_content(content_with_unknown, &mut templates);
 
         assert!(result.is_err());
         assert!(
@@ -302,7 +320,7 @@ mod tests {
         let mut templates = HashMap::new();
         let empty_content = "";
 
-        let result = load_template_from_content(&empty_content, &mut templates);
+        let result = load_template_from_content(empty_content, &mut templates);
 
         assert!(result.is_err());
         assert!(
@@ -337,7 +355,6 @@ mod tests {
 
     #[test]
     fn load_template_from_content_preserves_template_data_integrity() {
-        let mut templates = HashMap::new();
         let content = r#"
             [info]
             name = "COMPLEX"
@@ -375,7 +392,8 @@ mod tests {
             order = "Single"
             "#;
 
-        let result = load_template_from_content(&content, &mut templates);
+        let mut templates: HashMap<String, InternalTemplate> = HashMap::new();
+        let result = load_template_from_content(content, &mut templates);
 
         assert!(result.is_ok());
         assert_eq!(templates.len(), 1);
@@ -428,7 +446,7 @@ mod tests {
             order = "Triple"
             "#;
 
-        let result = load_template_from_content(&content, &mut templates);
+        let result = load_template_from_content(content, &mut templates);
 
         assert!(result.is_ok());
         let template = &templates["BONDS"];
@@ -463,7 +481,7 @@ mod tests {
             order = "Aromatic"
             "#;
 
-        let result = load_template_from_content(&content, &mut templates);
+        let result = load_template_from_content(content, &mut templates);
 
         assert!(result.is_ok());
         let template = &templates["AROMATIC"];
