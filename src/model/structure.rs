@@ -1,19 +1,46 @@
+//! Representation of multi-chain biomolecular assemblies with geometric helpers.
+//!
+//! The `Structure` type aggregates polymer chains, provides fast lookup utilities, and
+//! offers derived properties such as geometric centers or mass-weighted centroids. It is
+//! the central container consumed by IO readers, cleaning operations, and solvation tools.
+
 use super::chain::Chain;
 use super::residue::Residue;
 use super::types::Point;
 use std::fmt;
 
+/// High-level biomolecular assembly composed of zero or more chains.
+///
+/// A `Structure` wraps individual chains, tracks optional periodic box vectors, and offers
+/// convenience iterators for traversing chains, residues, and atoms alongside contextual
+/// metadata. Builders and operations mutate the structure to clean, solvate, or analyze
+/// biological systems.
 #[derive(Debug, Clone, Default)]
 pub struct Structure {
+    /// Internal collection of polymer chains preserving insertion order.
     chains: Vec<Chain>,
+    /// Optional periodic box represented as crystallographic basis vectors.
     pub box_vectors: Option<[[f64; 3]; 3]>,
 }
 
 impl Structure {
+    /// Creates an empty structure with no chains or box vectors.
+    ///
+    /// # Returns
+    ///
+    /// A new `Structure` identical to `Structure::default()`.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Appends a chain to the structure, asserting unique chain IDs in debug builds.
+    ///
+    /// The chain is inserted at the end of the current collection and becomes visible to
+    /// iterator methods immediately.
+    ///
+    /// # Arguments
+    ///
+    /// * `chain` - Chain instance whose `id` must be unique within the structure.
     pub fn add_chain(&mut self, chain: Chain) {
         debug_assert!(
             self.chain(&chain.id).is_none(),
@@ -23,6 +50,15 @@ impl Structure {
         self.chains.push(chain);
     }
 
+    /// Removes and returns a chain by identifier if it exists.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - Chain identifier to search for.
+    ///
+    /// # Returns
+    ///
+    /// `Some(Chain)` when a chain with the provided ID is present, otherwise `None`.
     pub fn remove_chain(&mut self, id: &str) -> Option<Chain> {
         if let Some(index) = self.chains.iter().position(|c| c.id == id) {
             Some(self.chains.remove(index))
@@ -31,18 +67,48 @@ impl Structure {
         }
     }
 
+    /// Drops every chain from the structure, leaving box vectors untouched.
     pub fn clear(&mut self) {
         self.chains.clear();
     }
 
+    /// Retrieves an immutable chain by identifier.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - Chain identifier to search for.
+    ///
+    /// # Returns
+    ///
+    /// `Some(&Chain)` if found, otherwise `None`.
     pub fn chain(&self, id: &str) -> Option<&Chain> {
         self.chains.iter().find(|c| c.id == id)
     }
 
+    /// Retrieves a mutable chain by identifier.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - Chain identifier to search for.
+    ///
+    /// # Returns
+    ///
+    /// `Some(&mut Chain)` if found, otherwise `None`.
     pub fn chain_mut(&mut self, id: &str) -> Option<&mut Chain> {
         self.chains.iter_mut().find(|c| c.id == id)
     }
 
+    /// Finds a residue using chain ID, residue number, and optional insertion code.
+    ///
+    /// # Arguments
+    ///
+    /// * `chain_id` - Identifier of the chain to search.
+    /// * `residue_id` - Numeric residue index (typically PDB `resSeq`).
+    /// * `insertion_code` - Optional insertion code differentiating duplicate IDs.
+    ///
+    /// # Returns
+    ///
+    /// `Some(&Residue)` when the residue is located, otherwise `None`.
     pub fn find_residue(
         &self,
         chain_id: &str,
@@ -53,6 +119,17 @@ impl Structure {
             .and_then(|c| c.residue(residue_id, insertion_code))
     }
 
+    /// Finds a mutable residue reference using chain and residue identifiers.
+    ///
+    /// # Arguments
+    ///
+    /// * `chain_id` - Identifier of the chain to search.
+    /// * `residue_id` - Numeric residue index.
+    /// * `insertion_code` - Optional insertion code to disambiguate residues.
+    ///
+    /// # Returns
+    ///
+    /// `Some(&mut Residue)` when located, otherwise `None`.
     pub fn find_residue_mut(
         &mut self,
         chain_id: &str,
@@ -63,42 +140,91 @@ impl Structure {
             .and_then(|c| c.residue_mut(residue_id, insertion_code))
     }
 
+    /// Sorts chains lexicographically by their identifier.
     pub fn sort_chains_by_id(&mut self) {
         self.chains.sort_by(|a, b| a.id.cmp(&b.id));
     }
 
+    /// Returns the number of chains currently stored.
+    ///
+    /// # Returns
+    ///
+    /// Chain count as `usize`.
     pub fn chain_count(&self) -> usize {
         self.chains.len()
     }
 
+    /// Counts all residues across every chain.
+    ///
+    /// # Returns
+    ///
+    /// Total residue count as `usize`.
     pub fn residue_count(&self) -> usize {
         self.chains.iter().map(|c| c.residue_count()).sum()
     }
 
+    /// Counts all atoms across every chain.
+    ///
+    /// # Returns
+    ///
+    /// Total atom count as `usize`.
     pub fn atom_count(&self) -> usize {
         self.chains.iter().map(|c| c.iter_atoms().count()).sum()
     }
 
+    /// Indicates whether the structure contains zero chains.
+    ///
+    /// # Returns
+    ///
+    /// `true` if no chains are present.
     pub fn is_empty(&self) -> bool {
         self.chains.is_empty()
     }
 
+    /// Provides an iterator over immutable chains.
+    ///
+    /// # Returns
+    ///
+    /// `std::slice::Iter<'_, Chain>` spanning all chains in insertion order.
     pub fn iter_chains(&self) -> std::slice::Iter<'_, Chain> {
         self.chains.iter()
     }
 
+    /// Provides an iterator over mutable chains.
+    ///
+    /// # Returns
+    ///
+    /// `std::slice::IterMut<'_, Chain>` for in-place modification of chains.
     pub fn iter_chains_mut(&mut self) -> std::slice::IterMut<'_, Chain> {
         self.chains.iter_mut()
     }
 
+    /// Iterates over immutable atoms across all chains.
+    ///
+    /// # Returns
+    ///
+    /// An iterator yielding `&Atom` in chain/residue order.
     pub fn iter_atoms(&self) -> impl Iterator<Item = &super::atom::Atom> {
         self.chains.iter().flat_map(|c| c.iter_atoms())
     }
 
+    /// Iterates over mutable atoms across all chains.
+    ///
+    /// # Returns
+    ///
+    /// An iterator yielding `&mut Atom` for direct coordinate editing.
     pub fn iter_atoms_mut(&mut self) -> impl Iterator<Item = &mut super::atom::Atom> {
         self.chains.iter_mut().flat_map(|c| c.iter_atoms_mut())
     }
 
+    /// Retains residues that satisfy a predicate, removing all others.
+    ///
+    /// The predicate receives the chain ID and a residue reference, enabling
+    /// context-sensitive filtering.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Closure returning `true` to keep the residue.
     pub fn retain_residues<F>(&mut self, mut f: F)
     where
         F: FnMut(&str, &Residue) -> bool,
@@ -109,10 +235,16 @@ impl Structure {
         }
     }
 
+    /// Removes any chain that became empty after residue pruning.
     pub fn prune_empty_chains(&mut self) {
         self.chains.retain(|chain| !chain.is_empty());
     }
 
+    /// Iterates over atoms while including chain and residue context.
+    ///
+    /// # Returns
+    ///
+    /// An iterator yielding triples `(&Chain, &Residue, &Atom)` for every atom.
     pub fn iter_atoms_with_context(
         &self,
     ) -> impl Iterator<Item = (&Chain, &Residue, &super::atom::Atom)> {
@@ -123,6 +255,13 @@ impl Structure {
         })
     }
 
+    /// Computes the geometric center of all atom coordinates.
+    ///
+    /// Falls back to the origin when the structure contains no atoms.
+    ///
+    /// # Returns
+    ///
+    /// A `Point` located at the unweighted centroid.
     pub fn geometric_center(&self) -> Point {
         let mut sum = nalgebra::Vector3::zeros();
         let mut count = 0;
@@ -139,6 +278,14 @@ impl Structure {
         }
     }
 
+    /// Computes the mass-weighted center of all atoms.
+    ///
+    /// Uses element atomic masses and returns the origin when the total mass is below
+    /// numerical tolerance.
+    ///
+    /// # Returns
+    ///
+    /// A `Point` representing the center of mass.
     pub fn center_of_mass(&self) -> Point {
         let mut total_mass = 0.0;
         let mut weighted_sum = nalgebra::Vector3::zeros();
