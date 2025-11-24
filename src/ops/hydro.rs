@@ -1,3 +1,9 @@
+//! Protonation-aware hydrogen placement for protein and nucleic acid structures.
+//!
+//! This module inspects residue templates, predicts protonation states from pH or hydrogen
+//! bonding networks, relabels residues accordingly, and rebuilds missing hydrogens while
+//! respecting polymer termini, nucleic acid priming, and disulfide bridges.
+
 use crate::db;
 use crate::model::{
     atom::Atom,
@@ -10,18 +16,30 @@ use nalgebra::{Matrix3, Rotation3, Vector3};
 use rand::Rng;
 use std::collections::HashSet;
 
+/// Maximum sulfur–sulfur distance (Å) used to detect disulfide bridges.
 const DISULFIDE_SG_THRESHOLD: f64 = 2.2;
+/// Henderson–Hasselbalch breakpoint for protonated N-termini.
 const N_TERM_PKA: f64 = 8.0;
+/// Henderson–Hasselbalch breakpoint for protonated C-termini.
 const C_TERM_PKA: f64 = 3.1;
 
+/// Parameters controlling hydrogen addition behavior.
+///
+/// `HydroConfig` can target a specific solution pH, remove pre-existing hydrogens, and
+/// choose how neutral histidine tautomers are assigned.
 #[derive(Debug, Clone)]
 pub struct HydroConfig {
+    /// Optional solvent pH value used for titration decisions.
     pub target_ph: Option<f64>,
+    /// Whether to strip all existing hydrogens before reconstruction.
     pub remove_existing_h: bool,
+    /// Strategy for setting neutral histidine tautomer labels.
     pub his_strategy: HisStrategy,
 }
 
 impl Default for HydroConfig {
+    /// Provides biologically reasonable defaults (physiological pH, removal of old hydrogens,
+    /// and hydrogen-bond-aware histidine selection).
     fn default() -> Self {
         Self {
             target_ph: None,
@@ -31,14 +49,38 @@ impl Default for HydroConfig {
     }
 }
 
+/// Strategies for choosing neutral histidine labels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HisStrategy {
+    /// Force all neutral histidines to HID (delta-protonated).
     DirectHID,
+    /// Force all neutral histidines to HIE (epsilon-protonated).
     DirectHIE,
+    /// Randomly choose between HID and HIE.
     Random,
+    /// Analyze hydrogen-bond networks to select the tautomer most likely to bond.
     HbNetwork,
 }
 
+/// Adds hydrogens to all standard residues in-place, updating protonation states when needed.
+///
+/// Disulfide bridges are detected prior to titration and preserved by relabeling cysteines to
+/// `CYX`. Residues lacking required anchor atoms will trigger descriptive errors so upstream
+/// cleanup steps can correct the issues.
+///
+/// # Arguments
+///
+/// * `structure` - Mutable structure whose residues will be protonated and hydrated.
+/// * `config` - Hydrogenation configuration, including pH target and histidine strategy.
+///
+/// # Returns
+///
+/// `Ok(())` when hydrogenation succeeds.
+///
+/// # Errors
+///
+/// Returns [`Error::MissingInternalTemplate`] when no template is found or
+/// [`Error::IncompleteResidueForHydro`] when required anchor atoms are missing.
 pub fn add_hydrogens(structure: &mut Structure, config: &HydroConfig) -> Result<(), Error> {
     let mut targets = Vec::new();
     for (c_idx, chain) in structure.iter_chains().enumerate() {
@@ -71,6 +113,21 @@ pub fn add_hydrogens(structure: &mut Structure, config: &HydroConfig) -> Result<
     Ok(())
 }
 
+/// Predicts the protonation-induced residue rename for a given polymer residue.
+///
+/// Applies residue-specific pKa thresholds, handles histidine tautomer selection, and
+/// respects previously tagged disulfide cysteines.
+///
+/// # Arguments
+///
+/// * `structure` - Structure providing context for hydrogen-bond analysis.
+/// * `c_idx` - Chain index of the residue under evaluation.
+/// * `r_idx` - Residue index within the chain.
+/// * `config` - Hydrogenation configuration containing pH and histidine options.
+///
+/// # Returns
+///
+/// `Some(new_name)` when the residue should be relabeled; otherwise `None`.
 fn determine_protonation_state(
     structure: &Structure,
     c_idx: usize,
@@ -136,6 +193,11 @@ fn determine_protonation_state(
     None
 }
 
+/// Identifies cysteine pairs forming disulfide bonds and renames them to `CYX`.
+///
+/// # Arguments
+///
+/// * `structure` - Mutable structure containing residues to scan and relabel.
 fn mark_disulfide_bridges(structure: &mut Structure) {
     let mut cys_sulfurs = Vec::new();
     for (c_idx, chain) in structure.iter_chains().enumerate() {
@@ -179,6 +241,17 @@ fn mark_disulfide_bridges(structure: &mut Structure) {
     }
 }
 
+/// Selects a neutral histidine tautomer using the configured strategy.
+///
+/// # Arguments
+///
+/// * `structure` - Structure used when hydrogen-bond networks are considered.
+/// * `residue` - Histidine residue being relabeled.
+/// * `strategy` - Selection strategy from [`HisStrategy`].
+///
+/// # Returns
+///
+/// Either `"HID"` or `"HIE"`.
 fn select_neutral_his(structure: &Structure, residue: &Residue, strategy: &HisStrategy) -> String {
     match strategy {
         HisStrategy::DirectHID => "HID".to_string(),
@@ -195,6 +268,16 @@ fn select_neutral_his(structure: &Structure, residue: &Residue, strategy: &HisSt
     }
 }
 
+/// Determines the best histidine tautomer by inspecting nearby hydrogen-bond acceptors.
+///
+/// # Arguments
+///
+/// * `structure` - Complete structure used to search for acceptor atoms.
+/// * `residue` - Histidine residue being evaluated.
+///
+/// # Returns
+///
+/// The histidine label (`"HID"` or `"HIE"`) that maximizes compatibility with neighbors.
 fn optimize_his_network(structure: &Structure, residue: &Residue) -> String {
     let nd1 = residue.atom("ND1");
     let ne2 = residue.atom("NE2");
@@ -231,6 +314,21 @@ fn optimize_his_network(structure: &Structure, residue: &Residue) -> String {
     }
 }
 
+/// Rebuilds hydrogens for a single residue using template geometry and terminal rules.
+///
+/// # Arguments
+///
+/// * `residue` - Residue to augment with hydrogens.
+/// * `config` - Hydrogenation configuration influencing terminal protonation.
+///
+/// # Returns
+///
+/// `Ok(())` when all hydrogens were added or already present.
+///
+/// # Errors
+///
+/// Returns [`Error::MissingInternalTemplate`] or [`Error::IncompleteResidueForHydro`] when
+/// required template data or anchor atoms are missing.
 fn construct_hydrogens_for_residue(
     residue: &mut Residue,
     config: &HydroConfig,
@@ -282,14 +380,43 @@ fn construct_hydrogens_for_residue(
     Ok(())
 }
 
+/// Evaluates whether an N-terminus should remain protonated under the configured pH.
+///
+/// # Arguments
+///
+/// * `config` - Hydrogenation configuration that may provide a target pH.
+///
+/// # Returns
+///
+/// `true` when the pH is below the configured threshold or unspecified.
 fn n_term_should_be_protonated(config: &HydroConfig) -> bool {
     config.target_ph.map(|ph| ph < N_TERM_PKA).unwrap_or(true)
 }
 
+/// Evaluates whether a C-terminus should remain protonated under the configured pH.
+///
+/// # Arguments
+///
+/// * `config` - Hydrogenation configuration potentially specifying pH.
+///
+/// # Returns
+///
+/// `true` when the pH is below the acidic cutoff; otherwise `false`.
 fn c_term_should_be_protonated(config: &HydroConfig) -> bool {
     config.target_ph.map(|ph| ph < C_TERM_PKA).unwrap_or(false)
 }
 
+/// Aligns template coordinates to residue anchors to predict a hydrogen position.
+///
+/// # Arguments
+///
+/// * `residue` - Residue containing measured anchor atoms.
+/// * `target_tmpl_pos` - Target hydrogen position from the template.
+/// * `anchor_names` - Atom names used to determine the rigid-body transform.
+///
+/// # Returns
+///
+/// `Ok(point)` containing the placed coordinate or `Err(())` if anchors are missing.
 fn reconstruct_geometry(
     residue: &Residue,
     target_tmpl_pos: Point,
@@ -317,6 +444,20 @@ fn reconstruct_geometry(
     Ok(rot * target_tmpl_pos + trans)
 }
 
+/// Rebuilds the N-terminal amine hydrogens using tetrahedral geometry.
+///
+/// # Arguments
+///
+/// * `residue` - Residue whose terminal hydrogens are being reconstructed.
+/// * `protonated` - Whether to place three hydrogens (`true`) or two (`false`).
+///
+/// # Returns
+///
+/// `Ok(())` when hydrogens are successfully placed.
+///
+/// # Errors
+///
+/// Returns [`Error::IncompleteResidueForHydro`] if the N or CA atoms are missing.
 fn construct_n_term_hydrogens(residue: &mut Residue, protonated: bool) -> Result<(), Error> {
     residue.remove_atom("H");
     residue.remove_atom("H1");
@@ -377,6 +518,20 @@ fn construct_n_term_hydrogens(residue: &mut Residue, protonated: bool) -> Result
     Ok(())
 }
 
+/// Rebuilds the carboxylate proton at the C-terminus when protonated.
+///
+/// # Arguments
+///
+/// * `residue` - Residue to modify.
+/// * `protonated` - Whether the terminus should include the `HOXT` hydrogen.
+///
+/// # Returns
+///
+/// `Ok(())` after either removing or adding hydrogens as needed.
+///
+/// # Errors
+///
+/// Returns [`Error::IncompleteResidueForHydro`] if the `C` or `OXT` atoms are missing.
 fn construct_c_term_hydrogen(residue: &mut Residue, protonated: bool) -> Result<(), Error> {
     if !protonated {
         residue.remove_atom("HOXT");
@@ -413,6 +568,19 @@ fn construct_c_term_hydrogen(residue: &mut Residue, protonated: bool) -> Result<
     Ok(())
 }
 
+/// Adds the 3'-terminal hydroxyl hydrogen to nucleic acid residues when absent.
+///
+/// # Arguments
+///
+/// * `residue` - Residue representing a nucleic acid terminal unit.
+///
+/// # Returns
+///
+/// `Ok(())` when the hydrogen is added or already present.
+///
+/// # Errors
+///
+/// Returns [`Error::IncompleteResidueForHydro`] if required sugar atoms are missing.
 fn construct_3_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
     if residue.has_atom("HO3'") {
         return Ok(());
@@ -444,6 +612,19 @@ fn construct_3_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
     Ok(())
 }
 
+/// Adds the 5'-terminal hydroxyl hydrogen for nucleic acid residues lacking phosphates.
+///
+/// # Arguments
+///
+/// * `residue` - Residue whose 5' terminus is being hydrated.
+///
+/// # Returns
+///
+/// `Ok(())` when the hydrogen is added or already exists.
+///
+/// # Errors
+///
+/// Returns [`Error::IncompleteResidueForHydro`] if sugar anchor atoms are missing.
 fn construct_5_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
     if residue.has_atom("HO5'") {
         return Ok(());
@@ -473,6 +654,18 @@ fn construct_5_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
     Ok(())
 }
 
+/// Computes the optimal rigid transform mapping template anchor points to residue atoms.
+///
+/// Uses Kabsch alignment with safeguards for one- and two-point configurations.
+///
+/// # Arguments
+///
+/// * `r_pts` - Coordinates from the residue.
+/// * `t_pts` - Corresponding coordinates from the template.
+///
+/// # Returns
+///
+/// `Some((rotation, translation))` when alignment succeeds; otherwise `None`.
 fn calculate_transform(r_pts: &[Point], t_pts: &[Point]) -> Option<(Matrix3<f64>, Vector3<f64>)> {
     let n = r_pts.len();
     if n != t_pts.len() || n == 0 {
