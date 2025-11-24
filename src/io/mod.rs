@@ -1,3 +1,9 @@
+//! IO front-end exposing structure parsing and export utilities for common biomolecular formats.
+//!
+//! The module re-exports format-specific readers and writers so applications can import PDB,
+//! mmCIF, or MOL2 data into `bio-forge` structures, enrich them via the operations pipeline,
+//! and export updated coordinates or topologies without touching lower-level submodules.
+
 mod context;
 mod error;
 mod mmcif;
