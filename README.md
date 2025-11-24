@@ -67,6 +67,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 > Prefer mmCIF? Swap in `read_mmcif_structure` / `write_mmcif_structure`. Need to process ligands? Parse them via `io::read_mol2_template` and feed the resulting `Template` into `TopologyBuilder::add_hetero_template`.
 
+## Documentation
+
+- [API Documentation](https://docs.rs/bio-forge) – comprehensive reference for public types and functions.
+- [Architecture Overview](ARCHITECTURE.md) – detailed explanation of the internal design and algorithms used in BioForge.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
