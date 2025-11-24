@@ -1,3 +1,10 @@
+//! mmCIF structure reader that reconstructs full chains, residues, and metadata.
+//!
+//! The parser tokenizes loop-based `_atom_site` tables, applies context-specific residue
+//! aliasing, honors alternate locations using occupancy weights, and emits [`Structure`]
+//! instances with categorized residues, terminal annotations, and optional unit-cell
+//! vectors derived from `_cell.*` entries.
+
 use crate::io::context::IoContext;
 use crate::io::error::Error;
 use crate::model::{
@@ -11,6 +18,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::BufRead;
 use std::str::FromStr;
 
+/// Composite key that uniquely identifies residues in a chain during parsing.
+///
+/// The key bundles author-provided chain IDs, sequence numbers, and optional insertion codes
+/// so buffered atoms remain deterministically ordered until they are converted into
+/// [`Residue`] objects.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct ResKey {
     chain_id: String,
@@ -18,12 +30,20 @@ struct ResKey {
     i_code: Option<char>,
 }
 
+/// Temporary aggregation of atoms prior to residue canonicalization.
+///
+/// Each entry tracks the raw residue name, whether it originated from `HETATM`, and the
+/// best-occupancy atom positions keyed by atom name.
 struct TempResidue {
     raw_name: String,
     is_hetatm: bool,
     atoms: HashMap<String, (f64, Atom)>,
 }
 
+/// Column index bookkeeping for `_atom_site` loop headers.
+///
+/// Fields store the zero-based column number for each required or optional header so that
+/// row parsing can remain allocation-free once the header is mapped.
 #[derive(Default)]
 struct AtomSiteIndices {
     group_pdb: Option<usize>,
@@ -43,6 +63,10 @@ struct AtomSiteIndices {
     type_symbol: Option<usize>,
 }
 
+/// DFA states for the mmCIF tokenizer.
+///
+/// Tracks whether the parser is currently outside loops, consuming headers, or streaming
+/// `_atom_site` rows versus unrelated loops so the correct handlers are invoked.
 enum ParserState {
     Base,
     InLoopHeader,
@@ -50,6 +74,26 @@ enum ParserState {
     InOtherLoop,
 }
 
+/// Parses mmCIF text into a normalized [`Structure`] using the supplied context.
+///
+/// The reader walks through `_cell.*` scalar entries, tokenizes `_atom_site` loops with
+/// quoted-field awareness, collapses alternate locations by occupancy, and applies
+/// [`IoContext`] aliasing plus template lookups to classify residues.
+///
+/// # Arguments
+///
+/// * `reader` - Any buffered reader that yields mmCIF text.
+/// * `context` - Alias and template tables that normalize residue names and metadata.
+///
+/// # Returns
+///
+/// A fully populated [`Structure`] with chain ordering, residue categories, positions, and
+/// optional unit-cell vectors derived from `_cell.*` parameters.
+///
+/// # Errors
+///
+/// Returns [`Error`] when encountering malformed loop headers, truncated `_atom_site`
+/// records, unknown standard residues, or IO failures reported by `reader`.
 pub fn read<R: BufRead>(reader: R, context: &IoContext) -> Result<Structure, Error> {
     let mut structure = Structure::new();
 
@@ -148,6 +192,18 @@ pub fn read<R: BufRead>(reader: R, context: &IoContext) -> Result<Structure, Err
     build_structure(structure, chain_order, chain_map, context)
 }
 
+/// Splits an mmCIF line into tokens while respecting quoted/semicolon blocks.
+///
+/// Handles both single- and double-quoted strings plus bare tokens separated by
+/// whitespace so that `_atom_site` loops can be parsed without external crates.
+///
+/// # Arguments
+///
+/// * `line` - Raw line text pulled from the mmCIF stream.
+///
+/// # Returns
+///
+/// A vector of token strings preserving quoted content.
 fn tokenize_mmcif_line(line: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current = String::new();
@@ -186,6 +242,18 @@ fn tokenize_mmcif_line(line: &str) -> Vec<String> {
     tokens
 }
 
+/// Maps `_atom_site` loop headers to column indices.
+///
+/// The function records the zero-based index of canonical headers so subsequent row
+/// parsing can directly access coordinates, atom IDs, and optional attributes.
+///
+/// # Arguments
+///
+/// * `headers` - Ordered header strings collected immediately after `loop_`.
+///
+/// # Returns
+///
+/// A populated [`AtomSiteIndices`] structure with optional indices for each field.
 fn map_atom_site_indices(headers: &[String]) -> AtomSiteIndices {
     let mut indices = AtomSiteIndices::default();
     for (i, header) in headers.iter().enumerate() {
@@ -211,6 +279,17 @@ fn map_atom_site_indices(headers: &[String]) -> AtomSiteIndices {
     indices
 }
 
+/// Retrieves a mandatory token value by index with bounds checking.
+///
+/// # Arguments
+///
+/// * `tokens` - Slice of tokens for the current mmCIF row.
+/// * `idx` - Zero-based index requested.
+/// * `line_num` - Line number for contextual error reporting.
+///
+/// # Returns
+///
+/// The token as a `&str` or an [`Error::Parse`] if the index is missing.
 fn token(tokens: &[String], idx: usize, line_num: usize) -> Result<&str, Error> {
     tokens.get(idx).map(|s| s.as_str()).ok_or_else(|| {
         Error::parse(
@@ -222,6 +301,18 @@ fn token(tokens: &[String], idx: usize, line_num: usize) -> Result<&str, Error> 
     })
 }
 
+/// Retrieves an optional token, yielding `None` when the header is absent.
+///
+/// # Arguments
+///
+/// * `tokens` - Token slice for the processed row.
+/// * `idx` - Optional column index for the field.
+/// * `line_num` - Source line for diagnostics.
+///
+/// # Returns
+///
+/// `Ok(Some(&str))` when the index exists, `Ok(None)` if the header was omitted, or an
+/// [`Error::Parse`] if the index exceeds the row length.
 fn optional_token(
     tokens: &[String],
     idx: Option<usize>,
@@ -234,6 +325,21 @@ fn optional_token(
     }
 }
 
+/// Converts a coordinate token into an `f64`, enforcing proper numeric content.
+///
+/// # Arguments
+///
+/// * `value` - Text representation of the coordinate.
+/// * `axis` - Axis name (X/Y/Z) for error messages.
+/// * `line_num` - Source line used when building parse errors.
+///
+/// # Returns
+///
+/// Parsed coordinate as `f64`.
+///
+/// # Errors
+///
+/// [`Error::Parse`] when the token cannot be interpreted as a floating-point number.
 fn parse_coordinate(value: &str, axis: &str, line_num: usize) -> Result<f64, Error> {
     f64::from_str(value).map_err(|_| {
         Error::parse(
@@ -245,6 +351,22 @@ fn parse_coordinate(value: &str, axis: &str, line_num: usize) -> Result<f64, Err
     })
 }
 
+/// Processes a single `_atom_site` row and appends it to the residue buffer.
+///
+/// Performs column lookups, handles missing values ("." and "?"), collapses chain IDs,
+/// and stores highest-occupancy atoms grouped by residue and atom name.
+///
+/// # Arguments
+///
+/// * `tokens` - Tokenized row from the `_atom_site` loop.
+/// * `indices` - Column indices resolved from the header.
+/// * `line_num` - Source line for contextual errors.
+/// * `chain_order` - Mutable list capturing encounter order of chains.
+/// * `chain_map` - Aggregation of temporary residues keyed by [`ResKey`].
+///
+/// # Returns
+///
+/// [`Ok`] if the row was accepted or [`Error`] if required columns are missing/malformed.
 fn process_atom_line(
     tokens: &[String],
     indices: &AtomSiteIndices,
@@ -429,6 +551,25 @@ fn process_atom_line(
     Ok(())
 }
 
+/// Converts the buffered residue map into a [`Structure`].
+///
+/// Chains are created in first-seen order, residues are canonicalized through the
+/// [`IoContext`], and polymer termini are annotated at the end.
+///
+/// # Arguments
+///
+/// * `structure` - Empty [`Structure`] to populate.
+/// * `chain_order` - Encounter order recorded during parsing.
+/// * `chain_map` - Buffered residues grouped by chain/key.
+/// * `context` - IO context used for residue aliasing and templates.
+///
+/// # Returns
+///
+/// A fully populated [`Structure`] on success.
+///
+/// # Errors
+///
+/// Propagates [`Error`] from residue classification or IO context lookups.
 fn build_structure(
     mut structure: Structure,
     chain_order: Vec<String>,
@@ -471,6 +612,21 @@ fn build_structure(
     Ok(structure)
 }
 
+/// Chooses a [`ResidueCategory`] from template matches or heuristics.
+///
+/// Standard residues are enforced via template lookup; unmapped standard entries produce an
+/// error, while heterogens fall back to atom-count heuristics to distinguish ions.
+///
+/// # Arguments
+///
+/// * `temp_res` - Buffered residue metadata and atoms.
+/// * `std_enum` - Optional standardized residue label returned by the context.
+///
+/// # Returns
+///
+/// [`ResidueCategory::Standard`] for templated residues, [`ResidueCategory::Ion`] for
+/// single-atom heterogens, [`ResidueCategory::Hetero`] otherwise, or an error for unknown
+/// standard residues.
 fn determine_category(
     temp_res: &TempResidue,
     std_enum: Option<StandardResidue>,
@@ -486,6 +642,14 @@ fn determine_category(
     }
 }
 
+/// Labels residues within each chain as terminal, internal, or unspecified.
+///
+/// Polymers are identified by standard templates (excluding water), with the first/last
+/// residues marked as N/C or 5'/3' termini depending on polymer type.
+///
+/// # Arguments
+///
+/// * `structure` - Structure whose residues require positional annotations.
 fn calculate_residue_positions(structure: &mut Structure) {
     for chain in structure.iter_chains_mut() {
         let polymer_indices: Vec<usize> = chain
@@ -541,6 +705,15 @@ fn calculate_residue_positions(structure: &mut Structure) {
     }
 }
 
+/// Converts `_cell.length_*` and `_cell.angle_*` parameters into box vectors.
+///
+/// # Arguments
+///
+/// * `params` - Key/value map collected while parsing cell metadata.
+///
+/// # Returns
+///
+/// `Some` orthogonalized 3×3 cell matrix if lengths are non-zero; otherwise `None`.
 fn process_cell_parameters(params: &HashMap<String, String>) -> Option<[[f64; 3]; 3]> {
     let get_f64 = |key: &str, def: f64| -> f64 {
         params
