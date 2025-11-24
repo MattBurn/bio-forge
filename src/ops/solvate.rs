@@ -1,3 +1,9 @@
+//! Constructs solvent boxes around solute structures and optionally neutralizes charge.
+//!
+//! The solvation pipeline packs waters on a configurable grid, recenters the solute, sets
+//! orthorhombic box vectors, and replaces selected waters with ions to reach a desired net
+//! charge. All randomization respects deterministic seeds for reproducibility.
+
 use crate::db;
 use crate::model::{
     atom::Atom,
@@ -13,37 +19,59 @@ use rand::seq::{IndexedRandom, SliceRandom};
 use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
 
+/// Supported cation species for ionic replacement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Cation {
+    /// Sodium ion.
     Na,
+    /// Potassium ion.
     K,
+    /// Magnesium ion.
     Mg,
+    /// Calcium ion.
     Ca,
+    /// Lithium ion.
     Li,
+    /// Zinc ion.
     Zn,
 }
 
+/// Supported anion species for ionic replacement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Anion {
+    /// Chloride ion.
     Cl,
+    /// Bromide ion.
     Br,
+    /// Iodide ion.
     I,
+    /// Fluoride ion.
     F,
 }
 
+/// Configuration parameters controlling solvent placement and ionization.
 #[derive(Debug, Clone)]
 pub struct SolvateConfig {
+    /// Margin (Å) added in every direction around the solute before packing solvent.
     pub margin: f64,
+    /// Distance (Å) between candidate water grid points.
     pub water_spacing: f64,
+    /// Minimum separation (Å) between new waters and existing heavy atoms.
     pub vdw_cutoff: f64,
+    /// Whether to remove pre-existing solvent/ions before generating the new box.
     pub remove_existing: bool,
+    /// Cation species available for ionic substitution.
     pub cations: Vec<Cation>,
+    /// Anion species available for ionic substitution.
     pub anions: Vec<Anion>,
+    /// Target total charge after solvating (solute + ions + water).
     pub target_charge: i32,
+    /// Optional RNG seed for deterministic solvent orientation.
     pub rng_seed: Option<u64>,
 }
 
 impl Default for SolvateConfig {
+    /// Produces a rectangular water box with 10 Å padding and physiological NaCl by default.
     fn default() -> Self {
         Self {
             margin: 10.0,
@@ -59,6 +87,11 @@ impl Default for SolvateConfig {
 }
 
 impl Cation {
+    /// Returns the elemental identity associated with the cation.
+    ///
+    /// # Returns
+    ///
+    /// Matching [`Element`] variant for the ion.
     pub fn element(&self) -> Element {
         match self {
             Cation::Na => Element::Na,
@@ -70,6 +103,11 @@ impl Cation {
         }
     }
 
+    /// Reports the integer charge for the cation.
+    ///
+    /// # Returns
+    ///
+    /// `1` for monovalent ions, `2` for divalent ones.
     pub fn charge(&self) -> i32 {
         match self {
             Cation::Na | Cation::K | Cation::Li => 1,
@@ -77,6 +115,11 @@ impl Cation {
         }
     }
 
+    /// Provides the residue name used when instantiating ion residues.
+    ///
+    /// # Returns
+    ///
+    /// Uppercase residue/atom name recognized by biomolecular formats.
     pub fn name(&self) -> &'static str {
         match self {
             Cation::Na => "NA",
@@ -90,6 +133,11 @@ impl Cation {
 }
 
 impl Anion {
+    /// Returns the elemental identity associated with the anion.
+    ///
+    /// # Returns
+    ///
+    /// Matching [`Element`] for the ion.
     pub fn element(&self) -> Element {
         match self {
             Anion::Cl => Element::Cl,
@@ -99,10 +147,20 @@ impl Anion {
         }
     }
 
+    /// Reports the integer charge for the anion.
+    ///
+    /// # Returns
+    ///
+    /// Always returns `-1` since only monovalent anions are supported.
     pub fn charge(&self) -> i32 {
         -1
     }
 
+    /// Provides the residue name used when instantiating the anion residue.
+    ///
+    /// # Returns
+    ///
+    /// Uppercase residue code recognized by biomolecular formats.
     pub fn name(&self) -> &'static str {
         match self {
             Anion::Cl => "CL",
@@ -113,6 +171,26 @@ impl Anion {
     }
 }
 
+/// Builds a solvent box, translates the solute to the padded origin, and inserts ions.
+///
+/// The function removes existing solvent when requested, computes an orthorhombic box from
+/// the solute bounds plus margins, packs waters on a regular grid while randomizing orientation,
+/// and finally replaces selected waters with ions to reach the target charge.
+///
+/// # Arguments
+///
+/// * `structure` - Mutable structure containing the solute atoms to surround with solvent.
+/// * `config` - Parameters controlling padding, spacing, ion species, and RNG seeding.
+///
+/// # Returns
+///
+/// `Ok(())` when solvent and ions are generated successfully.
+///
+/// # Errors
+///
+/// Returns [`Error::MissingInternalTemplate`] if the water template is absent,
+/// [`Error::BoxTooSmall`] when insufficient waters remain for ion swapping, or
+/// [`Error::IonizationFailed`] when the requested charge cannot be achieved.
 pub fn solvate_structure(structure: &mut Structure, config: &SolvateConfig) -> Result<(), Error> {
     if config.remove_existing {
         structure.retain_residues(|_chain_id, res| {
@@ -227,6 +305,15 @@ pub fn solvate_structure(structure: &mut Structure, config: &SolvateConfig) -> R
     Ok(())
 }
 
+/// Computes axis-aligned bounding box for all atoms in the structure.
+///
+/// # Arguments
+///
+/// * `structure` - Structure whose atoms will be scanned.
+///
+/// # Returns
+///
+/// Tuple of `(min_point, max_point)` representing the bounding box.
 fn calculate_bounds(structure: &Structure) -> (Point, Point) {
     let mut min = Point::new(f64::MAX, f64::MAX, f64::MAX);
     let mut max = Point::new(f64::MIN, f64::MIN, f64::MIN);
@@ -249,12 +336,27 @@ fn calculate_bounds(structure: &Structure) -> (Point, Point) {
     (min, max)
 }
 
+/// Translates every atom in the structure by the provided vector.
+///
+/// # Arguments
+///
+/// * `structure` - Structure to move.
+/// * `vec` - Translation vector applied to each atom.
 fn translate_structure(structure: &mut Structure, vec: &Vector3<f64>) {
     for atom in structure.iter_atoms_mut() {
         atom.translate_by(vec);
     }
 }
 
+/// Estimates the current solute charge using template charges and known ions.
+///
+/// # Arguments
+///
+/// * `structure` - Structure whose charge should be measured.
+///
+/// # Returns
+///
+/// Integer charge accumulated from templates and residue labels.
 fn calculate_solute_charge(structure: &Structure) -> i32 {
     let mut charge = 0;
     for chain in structure.iter_chains() {
@@ -274,6 +376,24 @@ fn calculate_solute_charge(structure: &Structure) -> i32 {
     charge
 }
 
+/// Replaces selected waters with ions to reach the requested total charge.
+///
+/// # Arguments
+///
+/// * `structure` - Current solute (used for charge estimation).
+/// * `solvent_chain` - Chain containing newly created solvent residues.
+/// * `water_indices` - Residue IDs that can be substituted with ions.
+/// * `config` - Solvation configuration specifying ion species and target charge.
+/// * `rng` - Random number generator for stochastic selection.
+///
+/// # Returns
+///
+/// `Ok(())` when the charge target is hit or ions are not requested.
+///
+/// # Errors
+///
+/// Returns [`Error::BoxTooSmall`] if no waters remain to swap or
+/// [`Error::IonizationFailed`] when charge neutrality cannot be achieved.
 fn replace_with_ions(
     structure: &Structure,
     solvent_chain: &mut Chain,
@@ -331,18 +451,49 @@ fn replace_with_ions(
     Ok(())
 }
 
+/// Creates a single-ion residue for the provided cation at a given position.
+///
+/// # Arguments
+///
+/// * `id` - Residue identifier to assign.
+/// * `cation` - Ion species to instantiate.
+/// * `pos` - Coordinates where the ion will be placed.
+///
+/// # Returns
+///
+/// A residue labeled as [`ResidueCategory::Ion`].
 fn create_cation_residue(id: i32, cation: Cation, pos: Point) -> Residue {
     let mut res = Residue::new(id, None, cation.name(), None, ResidueCategory::Ion);
     res.add_atom(Atom::new(cation.name(), cation.element(), pos));
     res
 }
 
+/// Creates a single-ion residue for the provided anion at a given position.
+///
+/// # Arguments
+///
+/// * `id` - Residue identifier.
+/// * `anion` - Ion species to instantiate.
+/// * `pos` - Coordinates where the ion is placed.
+///
+/// # Returns
+///
+/// A residue labeled as [`ResidueCategory::Ion`].
 fn create_anion_residue(id: i32, anion: Anion, pos: Point) -> Residue {
     let mut res = Residue::new(id, None, anion.name(), None, ResidueCategory::Ion);
     res.add_atom(Atom::new(anion.name(), anion.element(), pos));
     res
 }
 
+/// Builds a seeded or OS-random generator for solvent placement.
+///
+/// # Arguments
+///
+/// * `config` - Solvation configuration containing an optional seed.
+///
+/// # Returns
+///
+/// Deterministic RNG when a seed is given; otherwise an OS-random generator.
 fn build_rng(config: &SolvateConfig) -> StdRng {
     if let Some(seed) = config.rng_seed {
         StdRng::seed_from_u64(seed)
@@ -351,6 +502,15 @@ fn build_rng(config: &SolvateConfig) -> StdRng {
     }
 }
 
+/// Derives the next available solvent chain identifier (W, W1, W2, ...).
+///
+/// # Arguments
+///
+/// * `structure` - Structure used to check for existing chain IDs.
+///
+/// # Returns
+///
+/// Unique chain ID for newly inserted solvent.
 fn next_solvent_chain_id(structure: &Structure) -> String {
     const BASE_ID: &str = "W";
     if structure.chain(BASE_ID).is_none() {
@@ -367,12 +527,19 @@ fn next_solvent_chain_id(structure: &Structure) -> String {
     }
 }
 
+/// Sparse spatial hash used to reject candidate water positions via clash checks.
 struct SpatialGrid {
     cell_size: f64,
     cells: HashMap<(isize, isize, isize), Vec<Point>>,
 }
 
 impl SpatialGrid {
+    /// Builds the grid from existing heavy atoms in the structure.
+    ///
+    /// # Arguments
+    ///
+    /// * `structure` - Structure providing the atom positions.
+    /// * `cell_size` - Edge length (Å) for each spatial bin.
     fn new(structure: &Structure, cell_size: f64) -> Self {
         let mut cells: HashMap<(isize, isize, isize), Vec<Point>> = HashMap::new();
 
@@ -388,6 +555,12 @@ impl SpatialGrid {
         Self { cell_size, cells }
     }
 
+    /// Computes the cell index for a position.
+    ///
+    /// # Arguments
+    ///
+    /// * `pos` - Coordinate being binned.
+    /// * `size` - Cell size used when building the grid.
     fn get_index(pos: Point, size: f64) -> (isize, isize, isize) {
         (
             (pos.x / size).floor() as isize,
@@ -396,6 +569,16 @@ impl SpatialGrid {
         )
     }
 
+    /// Tests whether placing a water at the given point would violate the cutoff.
+    ///
+    /// # Arguments
+    ///
+    /// * `pos` - Candidate water position.
+    /// * `cutoff` - Minimum allowed heavy-atom distance.
+    ///
+    /// # Returns
+    ///
+    /// `true` when any stored heavy atom is closer than the cutoff.
     fn has_clash(&self, pos: &Point, cutoff: f64) -> bool {
         let center_idx = Self::get_index(*pos, self.cell_size);
         let cutoff_sq = cutoff * cutoff;
