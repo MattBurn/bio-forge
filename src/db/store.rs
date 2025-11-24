@@ -1,19 +1,36 @@
+//! In-memory cache for residue templates loaded from TOML resources.
+//!
+//! The store is initialized once on demand and exposes simple lookup helpers for the rest
+//! of the crate. Tests interact with the same structures to verify loading logic.
+
 use super::loader;
 use super::schema::ResidueTemplateFile;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+/// Wrapper around a parsed template, preserving the original schema for inspection.
 #[derive(Debug, Clone)]
 pub struct InternalTemplate {
+    /// Deserialized template schema retained for reuse across queries.
     pub schema: ResidueTemplateFile,
 }
 
+/// Holds every template indexed by its unique name.
 pub struct DataStore {
+    /// Map from template name (e.g., `"ALA"`) to the parsed template definition.
     pub templates_by_name: HashMap<String, InternalTemplate>,
 }
 
 static STORE: OnceLock<DataStore> = OnceLock::new();
 
+/// Returns the lazily initialized template store singleton.
+///
+/// The loader walks every TOML file under `templates/` exactly once and caches the result
+/// for subsequent topology-building operations.
+///
+/// # Returns
+///
+/// A reference to the initialized [`DataStore`].
 pub fn get_store() -> &'static DataStore {
     STORE.get_or_init(loader::load_all_templates)
 }
