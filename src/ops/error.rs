@@ -21,26 +21,14 @@ pub enum Error {
         atom_name: String,
     },
 
-    #[error(
-        "failed to construct hydrogen geometry for '{atom_name}' in residue '{res_name}' ({res_id})"
-    )]
-    GeometryConstructionFailed {
-        res_name: String,
-        res_id: i32,
-        atom_name: String,
-    },
-
-    #[error("operation requires existing box vectors, but none were found")]
-    BoxInfoMissing,
-
     #[error("simulation box is too small for the requested solvation parameters")]
     BoxTooSmall,
 
     #[error("ionization failed: {details}")]
     IonizationFailed { details: String },
 
-    #[error("missing user-provided topology template for hetero residue '{res_name}'")]
-    MissingUserTemplate { res_name: String },
+    #[error("missing hetero topology template for residue '{res_name}'")]
+    MissingHeteroTemplate { res_name: String },
 
     #[error(
         "topology mismatch: Residue '{res_name}' ({res_id}) is missing atom '{atom_name}' required by template"
