@@ -1,10 +1,28 @@
+//! Loads bundled residue templates from TOML resources into the in-memory store.
+//!
+//! This module performs eager deserialization of every template embedded in the crate at
+//! compile time. The resulting [`DataStore`] powers higher-level APIs such as
+//! [`TemplateView`](crate::db::TemplateView), ensuring template metadata and topology are
+//! always available without touching the filesystem at runtime.
+
 use super::schema::ResidueTemplateFile;
 use super::store::{DataStore, InternalTemplate};
 use std::collections::HashMap;
 
+/// Deserializes every bundled template and returns a populated [`DataStore`].
+///
+/// Templates are embedded by `include_str!` so this routine never performs IO at runtime.
+/// It panics when template files contain invalid TOML or share duplicated names, forcing
+/// such issues to be caught during development. Consumers should call
+/// [`crate::db::get_template`] instead of invoking this loader directly.
+///
+/// # Returns
+///
+/// A [`DataStore`] populated with template names mapped to their parsed content.
 pub fn load_all_templates() -> DataStore {
     let mut templates_by_name = HashMap::new();
 
+    // Inline macro keeps the list of template files concise while preserving panic context.
     macro_rules! load_template {
         ($path:literal) => {
             let content = include_str!(concat!("../../templates/", $path));
