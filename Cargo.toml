@@ -6,7 +6,7 @@ authors = ["Tony Kan <tianchengkan@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/TKanX/bio-forge"
 edition = "2024"
-description = "A pure Rust library for the automated repair, preparation, and topology construction of biological macromolecules."
+description = "A pure Rust library and CLI for the automated repair, preparation, and topology construction of biological macromolecules."
 keywords = [
     "bioinformatics",
     "chemoinformatics",
@@ -14,7 +14,7 @@ keywords = [
     "nucleic-acids",
     "pdb",
 ]
-categories = ["science", "science::bioinformatics"]
+categories = ["science", "science::bioinformatics", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
