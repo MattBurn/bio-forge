@@ -1,4 +1,7 @@
-use std::io::{self, Write};
+use std::{
+    fmt,
+    io::{self, Write},
+};
 
 use anyhow::{Context, Result};
 use clap::Args;
@@ -188,20 +191,20 @@ enum PolymerType {
     Empty,
 }
 
-impl ToString for PolymerType {
-    fn to_string(&self) -> String {
+impl fmt::Display for PolymerType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PolymerType::Protein => "Protein".to_string(),
-            PolymerType::Nucleic => "Nucleic".to_string(),
-            PolymerType::Solvent => "Solvent".to_string(),
+            PolymerType::Protein => write!(f, "Protein"),
+            PolymerType::Nucleic => write!(f, "Nucleic"),
+            PolymerType::Solvent => write!(f, "Solvent"),
             PolymerType::Mixed(components) => {
                 if components.is_empty() {
-                    "Mixed".to_string()
+                    write!(f, "Mixed")
                 } else {
-                    format!("Mixed ({})", components.join(", "))
+                    write!(f, "Mixed ({})", components.join(", "))
                 }
             }
-            PolymerType::Empty => "Empty".to_string(),
+            PolymerType::Empty => write!(f, "Empty"),
         }
     }
 }
