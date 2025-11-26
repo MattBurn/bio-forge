@@ -1,12 +1,11 @@
-
 [package]
 name = "bio-forge"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Tony Kan <tianchengkan@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/TKanX/bio-forge"
 edition = "2024"
-description = "A pure Rust library for the automated repair, preparation, and topology construction of biological macromolecules."
+description = "A pure Rust library and CLI for the automated repair, preparation, and topology construction of biological macromolecules."
 keywords = [
     "bioinformatics",
     "chemoinformatics",
@@ -14,7 +13,7 @@ keywords = [
     "nucleic-acids",
     "pdb",
 ]
-categories = ["science", "science::bioinformatics"]
+categories = ["science", "science::bioinformatics", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
@@ -23,10 +22,24 @@ nalgebra = "0.34.1"
 rand = "0.9.2"
 serde = { version = "1.0.188", features = ["derive"] }
 toml = "0.9.8"
+anyhow = { version = "1.0", optional = true }
+clap = { version = "4.4", features = ["derive"], optional = true }
+prettytable-rs = { version = "0.10", optional = true }
+indicatif = { version = "0.17.11", optional = true }
+is-terminal = { version = "0.4.17", optional = true }
 
 [lib]
 name = "bio_forge"
 path = "src/lib.rs"
+
+[[bin]]
+name = "bioforge"
+path = "src/bin/bioforge.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli"]
+cli = ["anyhow", "clap", "prettytable-rs", "indicatif", "is-terminal"]
 
 [profile.release]
 opt-level = 3

@@ -22,14 +22,32 @@
 
 ## Quick Start
 
-BioForge is currently distributed as a library crate. Add it to your `Cargo.toml` dependencies:
+### For CLI Users
+
+Install the latest BioForge CLI binary from the [releases page](https://github.com/TKanX/bio-forge/releases) or via `cargo`:
+
+```bash
+cargo install bioforge
+```
+
+Once the `bioforge` binary is installed, you can repair a structure in a single step:
+
+```bash
+bioforge repair -i input.pdb -o repaired.pdb
+```
+
+Explore the complete preparation pipeline in the [user manual](MANUAL.md) and browse the [examples directory](https://github.com/TKanX/bio-forge/tree/main/examples) for runnable walkthroughs.
+
+### For Library Developers
+
+BioForge is also available as a library crate. Add it to your `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-bio-forge = "0.1.0"
+bio-forge = "0.2.0"
 ```
 
-### Example: Preparing a PDB Structure
+#### Example: Preparing a PDB Structure
 
 ```rust
 use std::{fs::File, io::{BufReader, BufWriter}};
@@ -69,6 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Documentation
 
+- [CLI User Manual](MANUAL.md) – detailed explanation of command-line usage and options.
 - [API Documentation](https://docs.rs/bio-forge) – comprehensive reference for public types and functions.
 - [Architecture Overview](ARCHITECTURE.md) – detailed explanation of the internal design and algorithms used in BioForge.
 
