@@ -170,7 +170,8 @@ fn parse_atom_record(
         return Err(Error::parse("PDB", None, line_num, "Atom record too short"));
     }
 
-    let atom_name = line[12..16].trim().to_string();
+    let atom_field = &line[12..16];
+    let atom_name = atom_field.trim().to_string();
     let _alt_loc = line.chars().nth(16).unwrap_or(' ');
     let res_name = line[17..20].trim().to_string();
     let chain_id = line.chars().nth(21).unwrap_or(' ').to_string();
@@ -220,7 +221,7 @@ fn parse_atom_record(
     let occupancy = occ_str.trim().parse::<f64>().unwrap_or(1.0);
 
     let element = if element_str.trim().is_empty() {
-        parse_element_from_name(&atom_name)
+        parse_element_from_name(atom_field)
     } else {
         Element::from_str(element_str.trim()).unwrap_or(Element::Unknown)
     };
@@ -339,24 +340,70 @@ fn parse_cryst1(line: &str, line_num: usize) -> Result<[[f64; 3]; 3], Error> {
 ///
 /// Strips non-alphabetic characters, tries two-letter, then single-letter lookups, and
 /// ultimately falls back to [`Element::Unknown`].
-fn parse_element_from_name(name: &str) -> Element {
-    let name = name.trim();
-    let mut symbol = String::new();
-    for c in name.chars() {
-        if c.is_alphabetic() {
-            symbol.push(c);
-        } else if !symbol.is_empty() {
-            break;
+fn parse_element_from_name(field: &str) -> Element {
+    fn parse_single(ch: char) -> Option<Element> {
+        if !ch.is_ascii_alphabetic() {
+            return None;
+        }
+
+        let symbol = ch.to_ascii_uppercase().to_string();
+        Element::from_str(&symbol)
+            .ok()
+            .filter(|el| *el != Element::Unknown)
+    }
+
+    fn parse_pair(first: char, second: char) -> Option<Element> {
+        if !(first.is_ascii_alphabetic() && second.is_ascii_alphabetic()) {
+            return None;
+        }
+
+        let symbol = format!(
+            "{}{}",
+            first.to_ascii_uppercase(),
+            second.to_ascii_lowercase()
+        );
+        Element::from_str(&symbol)
+            .ok()
+            .filter(|el| *el != Element::Unknown)
+    }
+
+    let letters: Vec<(usize, char)> = field
+        .char_indices()
+        .filter(|(_, ch)| ch.is_ascii_alphabetic())
+        .collect();
+
+    if letters.is_empty() {
+        return Element::Unknown;
+    }
+
+    if letters.len() >= 2 {
+        let (first_idx, first_char) = letters[0];
+        let (second_idx, second_char) = letters[1];
+        let contiguous = second_idx == first_idx + first_char.len_utf8();
+        if first_idx == 0 && contiguous {
+            if let Some(el) = parse_pair(first_char, second_char) {
+                return el;
+            }
         }
     }
 
-    if let Ok(el) = Element::from_str(&symbol) {
+    if let Some(el) = parse_single(letters[0].1) {
         return el;
     }
-    if !symbol.is_empty() {
-        let first = &symbol[0..1];
-        if let Ok(el) = Element::from_str(first) {
-            return el;
+
+    if letters.len() >= 2 {
+        for window in letters.windows(2) {
+            let (first_idx, first_char) = window[0];
+            let (second_idx, second_char) = window[1];
+            let contiguous = second_idx == first_idx + first_char.len_utf8();
+            if contiguous {
+                if let Some(el) = parse_pair(first_char, second_char) {
+                    return el;
+                }
+            }
+            if let Some(el) = parse_single(second_char) {
+                return el;
+            }
         }
     }
 
