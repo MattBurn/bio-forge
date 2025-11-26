@@ -27,7 +27,7 @@
 Install the latest BioForge CLI binary from the [releases page](https://github.com/TKanX/bio-forge/releases) or via `cargo`:
 
 ```bash
-cargo install bioforge
+cargo install bio-forge
 ```
 
 Once the `bioforge` binary is installed, you can repair a structure in a single step:
