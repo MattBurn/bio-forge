@@ -44,7 +44,7 @@ BioForge is also available as a library crate. Add it to your `Cargo.toml` depen
 
 ```toml
 [dependencies]
-bio-forge = "0.2.1"
+bio-forge = "0.2.2"
 ```
 
 #### Example: Preparing a PDB Structure
