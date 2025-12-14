@@ -389,6 +389,70 @@ mod tests {
     }
 
     #[test]
+    fn repair_residue_adds_op3_for_5prime_with_phosphate() {
+        let template = db::get_template("DA").expect("template DA");
+        let mut residue = standard_residue("DA", 1, StandardResidue::DA);
+        residue.position = ResiduePosition::FivePrime;
+
+        add_atom_from_template(&mut residue, template, "P");
+        add_atom_from_template(&mut residue, template, "OP1");
+        add_atom_from_template(&mut residue, template, "OP2");
+        add_atom_from_template(&mut residue, template, "O5'");
+        add_atom_from_template(&mut residue, template, "C5'");
+        add_atom_from_template(&mut residue, template, "C4'");
+
+        repair_residue(&mut residue).expect("repair succeeds");
+
+        assert!(residue.has_atom("P"), "phosphorus should be retained");
+        assert!(residue.has_atom("OP1"), "OP1 should be retained");
+        assert!(residue.has_atom("OP2"), "OP2 should be retained");
+        assert!(residue.has_atom("O5'"), "O5' should be retained");
+        let op3 = residue
+            .atom("OP3")
+            .expect("OP3 should be synthesized for 5'-phosphate");
+        assert_eq!(op3.element, Element::O);
+    }
+
+    #[test]
+    fn repair_residue_excludes_phosphate_for_5prime_without_p() {
+        let template = db::get_template("DA").expect("template DA");
+        let mut residue = standard_residue("DA", 1, StandardResidue::DA);
+        residue.position = ResiduePosition::FivePrime;
+
+        add_atom_from_template(&mut residue, template, "O5'");
+        add_atom_from_template(&mut residue, template, "C5'");
+        add_atom_from_template(&mut residue, template, "C4'");
+        add_atom_from_template(&mut residue, template, "C3'");
+
+        repair_residue(&mut residue).expect("repair succeeds");
+
+        assert!(!residue.has_atom("P"), "P should not be synthesized");
+        assert!(!residue.has_atom("OP1"), "OP1 should not be synthesized");
+        assert!(!residue.has_atom("OP2"), "OP2 should not be synthesized");
+        assert!(!residue.has_atom("OP3"), "OP3 should not be synthesized");
+        assert!(residue.has_atom("O5'"), "O5' should be retained");
+    }
+
+    #[test]
+    fn repair_residue_3prime_nucleic_preserves_o3() {
+        let template = db::get_template("DA").expect("template DA");
+        let mut residue = standard_residue("DA", 10, StandardResidue::DA);
+        residue.position = ResiduePosition::ThreePrime;
+
+        add_atom_from_template(&mut residue, template, "C3'");
+        add_atom_from_template(&mut residue, template, "O3'");
+        add_atom_from_template(&mut residue, template, "C4'");
+        add_atom_from_template(&mut residue, template, "C5'");
+
+        repair_residue(&mut residue).expect("repair succeeds");
+
+        assert!(
+            residue.has_atom("O3'"),
+            "O3' should be present for 3' terminal"
+        );
+    }
+
+    #[test]
     fn repair_residue_errors_when_no_alignment_atoms_survive() {
         let mut residue = standard_residue("ALA", 2, StandardResidue::ALA);
         residue.add_atom(Atom::new("FAKE", Element::C, Point::origin()));
