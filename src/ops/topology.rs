@@ -199,7 +199,16 @@ impl TopologyBuilder {
         match residue.position {
             ResiduePosition::NTerminal if is_protein => atom_name == "H",
             ResiduePosition::CTerminal if is_protein => matches!(atom_name, "HXT" | "HOXT"),
-            ResiduePosition::FivePrime if is_nucleic => atom_name == "HO5'",
+            ResiduePosition::FivePrime if is_nucleic => {
+                if residue.has_atom("P") {
+                    matches!(atom_name, "OP3" | "HOP3" | "HOP2")
+                } else {
+                    matches!(
+                        atom_name,
+                        "P" | "OP1" | "OP2" | "OP3" | "HOP3" | "HOP2" | "HO5'"
+                    )
+                }
+            }
             ResiduePosition::ThreePrime if is_nucleic => atom_name == "HO3'",
             _ => false,
         }
@@ -246,11 +255,22 @@ impl TopologyBuilder {
         if residue.position == ResiduePosition::FivePrime
             && residue.standard_name.is_some_and(|s| s.is_nucleic())
         {
-            let ho5_idx = residue.iter_atoms().position(|a| a.name == "HO5'");
-            let o5_idx = residue.iter_atoms().position(|a| a.name == "O5'");
+            if let (Some(p_idx), Some(op3_idx)) = (
+                residue.iter_atoms().position(|a| a.name == "P"),
+                residue.iter_atoms().position(|a| a.name == "OP3"),
+            ) {
+                collector.insert(offset + p_idx, offset + op3_idx, BondOrder::Single);
 
-            if let (Some(h_idx), Some(o_idx)) = (ho5_idx, o5_idx) {
-                collector.insert(offset + h_idx, offset + o_idx, BondOrder::Single);
+                if let Some(hop3_idx) = residue.iter_atoms().position(|a| a.name == "HOP3") {
+                    collector.insert(offset + op3_idx, offset + hop3_idx, BondOrder::Single);
+                }
+            }
+
+            if let (Some(ho5_idx), Some(o5_idx)) = (
+                residue.iter_atoms().position(|a| a.name == "HO5'"),
+                residue.iter_atoms().position(|a| a.name == "O5'"),
+            ) {
+                collector.insert(offset + ho5_idx, offset + o5_idx, BondOrder::Single);
             }
         }
 
