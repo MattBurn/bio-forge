@@ -1,4 +1,4 @@
-# BioForge
+<h1><img src="https://raw.githubusercontent.com/TKanX/bio-forge/main/assets/logo.svg" alt="BioForge Logo" width="50em"> BioForge</h1>
 
 **BioForge** is a pure-Rust toolkit for automated preparation of biological macromolecules. It reads experimental structures (PDB/mmCIF), reconciles them with high-quality residue templates, repairs missing atoms, assigns hydrogens and termini, builds topologies, and optionally solvates the system with water and ions—all without leaving the Rust type system.
 
