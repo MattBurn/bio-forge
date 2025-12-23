@@ -24,6 +24,7 @@ pub mod templates;
 
 pub use model::atom::Atom;
 pub use model::chain::Chain;
+pub use model::grid::{Grid, GridNeighborhood};
 pub use model::residue::Residue;
 pub use model::structure::Structure;
 pub use model::template::Template;
