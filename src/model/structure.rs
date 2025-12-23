@@ -871,4 +871,91 @@ mod tests {
         assert_eq!(structure.chain_count(), cloned.chain_count());
         assert_eq!(structure.box_vectors, cloned.box_vectors);
     }
+
+    #[test]
+    fn spatial_grid_bins_and_neighbor_queries_work() {
+        let mut structure = Structure::new();
+        let mut chain = Chain::new("A");
+        let mut residue = Residue::new(
+            1,
+            None,
+            "ALA",
+            Some(StandardResidue::ALA),
+            ResidueCategory::Standard,
+        );
+
+        residue.add_atom(Atom::new("CA", Element::C, Point::new(0.0, 0.0, 0.0)));
+        residue.add_atom(Atom::new("CB", Element::C, Point::new(1.5, 0.0, 0.0)));
+        chain.add_residue(residue);
+        structure.add_chain(chain);
+
+        let grid = structure.spatial_grid(1.0);
+
+        let big_center = structure.geometric_center();
+        let all_count = grid.neighbors(&big_center, 1e6).count();
+        assert_eq!(all_count, structure.atom_count());
+
+        let center = Point::new(0.0, 0.0, 0.0);
+        let neighbors: Vec<_> = grid.neighbors(&center, 0.1).collect();
+        assert_eq!(neighbors.len(), 1);
+
+        let &(c_idx, r_idx, a_idx) = neighbors[0];
+        let chain_ref = structure.iter_chains().nth(c_idx).unwrap();
+        let residue_ref = chain_ref.iter_residues().nth(r_idx).unwrap();
+        let atom_ref = residue_ref.iter_atoms().nth(a_idx).unwrap();
+        assert_eq!(atom_ref.name, "CA");
+
+        let coarse = grid.neighbors(&center, 2.0).count();
+        assert_eq!(coarse, 2);
+
+        let exact: Vec<_> = grid.neighbors(&center, 1.0).exact().collect();
+        assert_eq!(exact.len(), 1);
+    }
+
+    #[test]
+    fn spatial_grid_empty_structure_is_empty() {
+        let structure = Structure::new();
+
+        let grid = structure.spatial_grid(1.0);
+        assert_eq!(grid.neighbors(&Point::origin(), 1.0).count(), 0);
+        assert_eq!(grid.neighbors(&Point::origin(), 1.0).exact().count(), 0);
+    }
+
+    #[test]
+    fn spatial_grid_dense_packing_and_indices_are_consistent() {
+        let mut structure = Structure::new();
+        let mut chain = Chain::new("A");
+        let mut residue = Residue::new(
+            1,
+            None,
+            "ALA",
+            Some(StandardResidue::ALA),
+            ResidueCategory::Standard,
+        );
+
+        for i in 0..50 {
+            residue.add_atom(Atom::new(
+                &format!("X{}", i),
+                Element::C,
+                Point::new(0.1, 0.1, 0.1),
+            ));
+        }
+        chain.add_residue(residue);
+        structure.add_chain(chain);
+
+        let grid = structure.spatial_grid(1.0);
+        let center = Point::new(0.1, 0.1, 0.1);
+        assert_eq!(grid.neighbors(&center, 1e6).count(), structure.atom_count());
+
+        let center = Point::new(0.1, 0.1, 0.1);
+        let count = grid.neighbors(&center, 0.5).count();
+        assert_eq!(count, 50);
+
+        for &(c, r, a) in grid.neighbors(&center, 0.5) {
+            let chain_ref = structure.iter_chains().nth(c).unwrap();
+            let residue_ref = chain_ref.iter_residues().nth(r).unwrap();
+            let atom_ref = residue_ref.iter_atoms().nth(a).unwrap();
+            assert!(atom_ref.name.starts_with('X'));
+        }
+    }
 }
