@@ -74,7 +74,7 @@ fn repair_residue(residue: &mut Residue) -> Result<(), Error> {
     let template_name = residue.name.clone();
     let template_view =
         db::get_template(&template_name).ok_or_else(|| Error::MissingInternalTemplate {
-            res_name: template_name.clone(),
+            res_name: template_name.to_string(),
         })?;
 
     let mut valid_names: HashSet<String> = HashSet::new();
@@ -110,8 +110,8 @@ fn repair_residue(residue: &mut Residue) -> Result<(), Error> {
     let atoms_to_remove: Vec<String> = residue
         .atoms()
         .iter()
-        .filter(|a| !valid_names.contains(&a.name))
-        .map(|a| a.name.clone())
+        .filter(|a| !valid_names.contains(a.name.as_str()))
+        .map(|a| a.name.to_string())
         .collect();
 
     for name in atoms_to_remove {
@@ -155,7 +155,7 @@ fn repair_residue(residue: &mut Residue) -> Result<(), Error> {
 
     if align_pairs.is_empty() {
         return Err(Error::alignment_failed(
-            &residue.name,
+            &*residue.name,
             residue.id,
             "No matching heavy atoms found for alignment",
         ));

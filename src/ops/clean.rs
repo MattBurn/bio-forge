@@ -89,11 +89,11 @@ pub fn clean_structure(structure: &mut Structure, config: &CleanConfig) -> Resul
     }
 
     structure.retain_residues(|_chain_id, residue| {
-        if config.keep_residue_names.contains(&residue.name) {
+        if config.keep_residue_names.contains(residue.name.as_str()) {
             return true;
         }
 
-        if config.remove_residue_names.contains(&residue.name) {
+        if config.remove_residue_names.contains(residue.name.as_str()) {
             return false;
         }
 

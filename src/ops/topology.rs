@@ -112,7 +112,7 @@ impl TopologyBuilder {
                     let tmpl_name = &residue.name;
                     let tmpl_view = db::get_template(tmpl_name).ok_or_else(|| {
                         Error::MissingInternalTemplate {
-                            res_name: tmpl_name.clone(),
+                            res_name: tmpl_name.to_string(),
                         }
                     })?;
 
@@ -129,11 +129,12 @@ impl TopologyBuilder {
 
                     self.handle_terminal_intra_bonds(residue, global_atom_offset, collector)?;
                 } else if residue.category == ResidueCategory::Hetero {
-                    let tmpl = self.hetero_templates.get(&residue.name).ok_or_else(|| {
-                        Error::MissingHeteroTemplate {
-                            res_name: residue.name.clone(),
-                        }
-                    })?;
+                    let tmpl = self
+                        .hetero_templates
+                        .get(residue.name.as_str())
+                        .ok_or_else(|| Error::MissingHeteroTemplate {
+                            res_name: residue.name.to_string(),
+                        })?;
 
                     for (a1_name, a2_name, order) in tmpl.bonds() {
                         self.try_add_bond(
@@ -175,12 +176,12 @@ impl TopologyBuilder {
             (None, _) if self.is_optional_terminal_atom(residue, name1) => Ok(()),
             (_, None) if self.is_optional_terminal_atom(residue, name2) => Ok(()),
             (None, _) => Err(Error::topology_atom_missing(
-                &residue.name,
+                &*residue.name,
                 residue.id,
                 name1,
             )),
             (_, None) => Err(Error::topology_atom_missing(
-                &residue.name,
+                &*residue.name,
                 residue.id,
                 name2,
             )),

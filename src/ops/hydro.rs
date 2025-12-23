@@ -102,7 +102,7 @@ pub fn add_hydrogens(structure: &mut Structure, config: &HydroConfig) -> Result<
         let residue = chain.iter_residues_mut().nth(r_idx).unwrap();
 
         if let Some(name) = new_name {
-            residue.name = name;
+            residue.name = name.into();
         }
 
         if config.remove_existing_h {
@@ -237,7 +237,7 @@ fn mark_disulfide_bridges(structure: &mut Structure) {
     for (c_idx, chain) in structure.iter_chains_mut().enumerate() {
         for (r_idx, residue) in chain.iter_residues_mut().enumerate() {
             if disulfide_residues.contains(&(c_idx, r_idx)) && residue.name != "CYX" {
-                residue.name = "CYX".to_string();
+                residue.name = "CYX".into();
             }
         }
     }
@@ -339,10 +339,11 @@ fn construct_hydrogens_for_residue(
 
     let template_view =
         db::get_template(&template_name).ok_or_else(|| Error::MissingInternalTemplate {
-            res_name: template_name.clone(),
+            res_name: template_name.to_string(),
         })?;
 
-    let existing_atoms: HashSet<String> = residue.atoms().iter().map(|a| a.name.clone()).collect();
+    let existing_atoms: HashSet<String> =
+        residue.atoms().iter().map(|a| a.name.to_string()).collect();
 
     for (h_name, h_tmpl_pos, anchors_iter) in template_view.hydrogens() {
         if existing_atoms.contains(h_name) {
@@ -354,7 +355,7 @@ fn construct_hydrogens_for_residue(
             residue.add_atom(Atom::new(h_name, Element::H, pos));
         } else {
             return Err(Error::incomplete_for_hydro(
-                &residue.name,
+                &*residue.name,
                 residue.id,
                 anchors.first().copied().unwrap_or("?"),
             ));
@@ -470,11 +471,11 @@ fn construct_n_term_hydrogens(residue: &mut Residue, protonated: bool) -> Result
 
     let n_pos = residue
         .atom("N")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "N"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "N"))?
         .pos;
     let ca_pos = residue
         .atom("CA")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "CA"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "CA"))?
         .pos;
 
     let v_ca_n = (n_pos - ca_pos).normalize();
@@ -550,17 +551,17 @@ fn construct_c_term_hydrogen(residue: &mut Residue, protonated: bool) -> Result<
 
     let c_pos = residue
         .atom("C")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "C"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "C"))?
         .pos;
     let oxt_pos = residue
         .atom("OXT")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "OXT"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "OXT"))?
         .pos;
 
     let direction = oxt_pos - c_pos;
     if direction.norm_squared() < 1e-6 {
         return Err(Error::incomplete_for_hydro(
-            &residue.name,
+            &*residue.name,
             residue.id,
             "OXT",
         ));
@@ -592,11 +593,11 @@ fn construct_3_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
 
     let o3 = residue
         .atom("O3'")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "O3'"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "O3'"))?
         .pos;
     let c3 = residue
         .atom("C3'")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "C3'"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "C3'"))?
         .pos;
     let c4 = residue
         .atom("C4'")
@@ -636,11 +637,11 @@ fn construct_5_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
 
     let o5 = residue
         .atom("O5'")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "O5'"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "O5'"))?
         .pos;
     let c5 = residue
         .atom("C5'")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "C5'"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "C5'"))?
         .pos;
 
     let v_c5_o5 = (o5 - c5).normalize();
@@ -694,11 +695,11 @@ fn construct_5_prime_phosphate_hydrogens(
 
     let op3 = residue
         .atom("OP3")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "OP3"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "OP3"))?
         .pos;
     let p = residue
         .atom("P")
-        .ok_or_else(|| Error::incomplete_for_hydro(&residue.name, residue.id, "P"))?
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "P"))?
         .pos;
 
     let direction = (op3 - p).normalize();
