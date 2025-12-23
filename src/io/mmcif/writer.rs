@@ -261,7 +261,6 @@ impl<W: Write> WriterContext<W> {
 
                     self.write_atom_record(
                         group_pdb,
-                        atom_id,
                         atom,
                         residue,
                         &chain_id,
@@ -284,7 +283,6 @@ impl<W: Write> WriterContext<W> {
     /// # Arguments
     ///
     /// * `group_pdb` - Either `"ATOM"` or `"HETATM"`.
-    /// * `atom_id` - Sequential atom identifier.
     /// * `atom` - Atom providing coordinates and element symbol.
     /// * `residue` - Residue metadata for labels and auth fields.
     /// * `chain_id` - Parent chain identifier string.
@@ -293,13 +291,13 @@ impl<W: Write> WriterContext<W> {
     fn write_atom_record(
         &mut self,
         group_pdb: &str,
-        atom_id: usize,
         atom: &Atom,
         residue: &Residue,
         chain_id: &str,
         entity_id: usize,
         label_seq_id: &str,
     ) -> Result<(), Error> {
+        let atom_id = self.current_atom_id;
         let type_symbol = atom.element.symbol();
         let label_atom_id = quote_string(&atom.name);
         let label_comp_id = quote_string(&residue.name);
