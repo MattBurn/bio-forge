@@ -165,7 +165,7 @@ impl<W: Write> WriterContext<W> {
         writeln!(self.writer, "_atom_site.auth_atom_id").map_err(|e| Error::from_io(e, None))?;
 
         self.atom_index_to_id.clear();
-        let mut entity_ids: HashMap<String, usize> = HashMap::new();
+        let mut entity_ids: HashMap<smol_str::SmolStr, usize> = HashMap::new();
         let mut next_entity_id = 1usize;
         let mut global_atom_index = 0usize;
 
