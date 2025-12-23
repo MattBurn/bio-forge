@@ -613,7 +613,7 @@ mod tests {
         structure.add_chain(Chain::new("A"));
 
         for chain in structure.iter_chains_mut() {
-            chain.id = "MODIFIED".to_string();
+            chain.id = "MODIFIED".into();
         }
 
         assert_eq!(structure.chain("MODIFIED").unwrap().id, "MODIFIED");
@@ -725,7 +725,7 @@ mod tests {
             contexts.push((chain.id.clone(), residue.id, atom.name.clone()));
         }
 
-        assert_eq!(contexts, vec![("A".to_string(), 1, "CA".to_string())]);
+        assert_eq!(contexts, vec![("A".into(), 1, "CA".into())]);
     }
 
     #[test]
