@@ -8,6 +8,7 @@
 
 use crate::db;
 use crate::model::{
+    grid::Grid,
     structure::Structure,
     template::Template,
     topology::{Bond, Topology},
@@ -358,7 +359,7 @@ impl TopologyBuilder {
                         if let Some(sg) = residue.atom("SG") {
                             let offset = residue_offsets[c_idx][r_idx]
                                 + residue.iter_atoms().position(|a| a.name == "SG").unwrap();
-                            sulfur_atoms.push((offset, sg.pos));
+                            sulfur_atoms.push((sg.pos, offset));
                         }
                     }
                     _ => {}
@@ -366,14 +367,14 @@ impl TopologyBuilder {
             }
         }
 
-        let cutoff_sq = self.disulfide_bond_cutoff * self.disulfide_bond_cutoff;
-        for i in 0..sulfur_atoms.len() {
-            for j in (i + 1)..sulfur_atoms.len() {
-                let (idx1, pos1) = sulfur_atoms[i];
-                let (idx2, pos2) = sulfur_atoms[j];
+        if !sulfur_atoms.is_empty() {
+            let grid = Grid::new(sulfur_atoms.clone(), self.disulfide_bond_cutoff + 0.5);
 
-                if nalgebra::distance_squared(&pos1, &pos2) <= cutoff_sq {
-                    collector.insert(idx1, idx2, BondOrder::Single);
+            for (pos, idx1) in &sulfur_atoms {
+                for &idx2 in grid.neighbors(pos, self.disulfide_bond_cutoff).exact() {
+                    if *idx1 < idx2 {
+                        collector.insert(*idx1, idx2, BondOrder::Single);
+                    }
                 }
             }
         }
