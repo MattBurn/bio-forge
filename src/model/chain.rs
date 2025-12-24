@@ -711,6 +711,28 @@ mod tests {
     }
 
     #[test]
+    fn chain_retain_residues_mut_filters_and_modifies() {
+        let mut chain = Chain::new("A");
+        chain.add_residue(sample_residue(1, "ALA"));
+        chain.add_residue(sample_residue(2, "GLY"));
+        chain.add_residue(sample_residue(3, "SER"));
+
+        chain.retain_residues_mut(|residue| {
+            if residue.id % 2 == 1 {
+                residue.name = format!("{}_MOD", residue.name).into();
+                true
+            } else {
+                false
+            }
+        });
+
+        let ids: Vec<i32> = chain.iter_residues().map(|r| r.id).collect();
+        assert_eq!(ids, vec![1, 3]);
+        assert_eq!(chain.residue(1, None).unwrap().name, "ALA_MOD");
+        assert_eq!(chain.residue(3, None).unwrap().name, "SER_MOD");
+    }
+
+    #[test]
     fn chain_remove_residue_returns_removed_value() {
         let mut chain = Chain::new("A");
         chain.add_residue(sample_residue(5, "ALA"));
