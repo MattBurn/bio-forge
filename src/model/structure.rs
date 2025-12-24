@@ -350,6 +350,31 @@ impl Structure {
         self.retain_residues(f);
     }
 
+    /// Retains residues that satisfy a predicate, removing all others (Parallel Mutable version).
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Thread-safe closure returning `true` to keep the residue.
+    #[cfg(feature = "parallel")]
+    pub fn par_retain_residues_mut<F>(&mut self, f: F)
+    where
+        F: Fn(&str, &mut Residue) -> bool + Sync + Send,
+    {
+        self.chains.par_iter_mut().for_each(|chain| {
+            let chain_id = chain.id.clone();
+            chain.retain_residues_mut(|residue| f(&chain_id, residue));
+        });
+    }
+
+    /// Retains residues that satisfy a predicate, removing all others (Sequential Mutable fallback).
+    #[cfg(not(feature = "parallel"))]
+    pub fn par_retain_residues_mut<F>(&mut self, f: F)
+    where
+        F: Fn(&str, &mut Residue) -> bool + Sync + Send,
+    {
+        self.retain_residues_mut(f);
+    }
+
     /// Removes any chain that became empty after residue pruning.
     pub fn prune_empty_chains(&mut self) {
         self.chains.retain(|chain| !chain.is_empty());
