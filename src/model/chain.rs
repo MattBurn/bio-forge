@@ -126,6 +126,15 @@ impl Chain {
         self.residues.len()
     }
 
+    /// Counts all atoms across every residue in the chain.
+    ///
+    /// # Returns
+    ///
+    /// Total atom count as `usize`.
+    pub fn atom_count(&self) -> usize {
+        self.residues.iter().map(|r| r.atom_count()).sum()
+    }
+
     /// Indicates whether the chain contains no residues.
     ///
     /// # Returns
