@@ -269,6 +269,26 @@ impl Structure {
             .flat_map(|c| c.par_residues_mut())
     }
 
+    /// Provides a parallel iterator over immutable atoms across all chains.
+    ///
+    /// # Returns
+    ///
+    /// A parallel iterator yielding `&Atom`.
+    #[cfg(feature = "parallel")]
+    pub fn par_atoms(&self) -> impl ParallelIterator<Item = &super::atom::Atom> {
+        self.chains
+            .par_iter()
+            .flat_map(|c| c.par_residues().flat_map(|r| r.par_atoms()))
+    }
+
+    /// Provides a parallel iterator over immutable atoms across all chains (internal fallback).
+    #[cfg(not(feature = "parallel"))]
+    pub(crate) fn par_atoms(&self) -> impl ParallelIterator<Item = &super::atom::Atom> {
+        self.chains
+            .par_iter()
+            .flat_map(|c| c.par_residues().flat_map(|r| r.par_atoms()))
+    }
+
     /// Iterates over immutable atoms across all chains.
     ///
     /// # Returns
