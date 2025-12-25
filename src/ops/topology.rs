@@ -98,6 +98,8 @@ impl TopologyBuilder {
             current_offset += chain.atom_count();
         }
 
+        assert_eq!(chain_offsets.len(), structure.chain_count());
+
         let hetero_templates = &self.hetero_templates;
         let peptide_cutoff = self.peptide_bond_cutoff;
         let nucleic_cutoff = self.nucleic_bond_cutoff;
