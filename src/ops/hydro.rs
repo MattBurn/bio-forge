@@ -526,11 +526,9 @@ fn reconstruct_geometry(
 
     let (mut rot, mut trans) = calculate_transform(&residue_pts, &template_pts).ok_or(())?;
 
-    if let Some(override_rot) = rotation_override {
-        if anchor_names.len() == 1 {
-            rot = override_rot.into_inner();
-            trans = residue_pts[0].coords - rot * template_pts[0].coords;
-        }
+    if let (Some(override_rot), 1) = (rotation_override, anchor_names.len()) {
+        rot = override_rot.into_inner();
+        trans = residue_pts[0].coords - rot * template_pts[0].coords;
     }
 
     Ok(rot * target_tmpl_pos + trans)
