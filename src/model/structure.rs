@@ -898,6 +898,50 @@ mod tests {
     }
 
     #[test]
+    fn structure_par_atoms_iterates_correctly() {
+        let mut structure = Structure::new();
+        let mut chain = Chain::new("A");
+        let mut r1 = make_residue(1, "ALA");
+        r1.add_atom(Atom::new("CA", Element::C, Point::new(0.0, 0.0, 0.0)));
+        let mut r2 = make_residue(2, "GLY");
+        r2.add_atom(Atom::new("N", Element::N, Point::new(1.0, 0.0, 0.0)));
+
+        chain.add_residue(r1);
+        chain.add_residue(r2);
+        structure.add_chain(chain);
+
+        let count = structure.par_atoms().count();
+        assert_eq!(count, 2);
+
+        let names: Vec<String> = structure.par_atoms().map(|a| a.name.to_string()).collect();
+        assert!(names.contains(&"CA".to_string()));
+        assert!(names.contains(&"N".to_string()));
+    }
+
+    #[test]
+    fn structure_par_atoms_mut_iterates_correctly() {
+        let mut structure = Structure::new();
+        let mut chain = Chain::new("A");
+        let mut r1 = make_residue(1, "ALA");
+        r1.add_atom(Atom::new("CA", Element::C, Point::new(0.0, 0.0, 0.0)));
+        chain.add_residue(r1);
+        structure.add_chain(chain);
+
+        structure.par_atoms_mut().for_each(|a| {
+            a.pos.x += 10.0;
+        });
+
+        let atom = structure
+            .chain("A")
+            .unwrap()
+            .residue(1, None)
+            .unwrap()
+            .atom("CA")
+            .unwrap();
+        assert!((atom.pos.x - 10.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn structure_iter_atoms_iterates_over_all_atoms() {
         let mut structure = Structure::new();
         let mut chain = Chain::new("A");
