@@ -225,6 +225,28 @@ impl Residue {
         self.atoms.par_iter()
     }
 
+    /// Provides a parallel iterator over mutable atoms.
+    ///
+    /// # Returns
+    ///
+    /// A parallel iterator yielding `&mut Atom`.
+    #[cfg(feature = "parallel")]
+    pub fn par_atoms_mut(
+        &mut self,
+    ) -> impl crate::utils::parallel::IndexedParallelIterator<Item = &mut Atom> {
+        use crate::utils::parallel::IntoParallelRefMutIterator;
+        self.atoms.par_iter_mut()
+    }
+
+    /// Provides a parallel iterator over mutable atoms (internal fallback).
+    #[cfg(not(feature = "parallel"))]
+    pub(crate) fn par_atoms_mut(
+        &mut self,
+    ) -> impl crate::utils::parallel::IndexedParallelIterator<Item = &mut Atom> {
+        use crate::utils::parallel::IntoParallelRefMutIterator;
+        self.atoms.par_iter_mut()
+    }
+
     /// Removes all hydrogen atoms from the residue.
     ///
     /// Used by cleaning operations when preparing structures for solvation or heavy-atom
