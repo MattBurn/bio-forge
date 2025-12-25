@@ -81,8 +81,14 @@ mod fallback {
         }
     }
 
-    /// Shim trait to allow `par_sort_unstable_by_key` on slices.
+    /// Shim trait to allow parallel sorting on slices.
     pub trait ParallelSliceMut<T> {
+        /// Sorts the slice using the default ordering, potentially in parallel.
+        fn par_sort_unstable(&mut self)
+        where
+            T: Ord;
+
+        /// Sorts the slice using a key extraction function, potentially in parallel.
         fn par_sort_unstable_by_key<K, F>(&mut self, f: F)
         where
             K: Ord,
@@ -90,6 +96,13 @@ mod fallback {
     }
 
     impl<T> ParallelSliceMut<T> for [T] {
+        fn par_sort_unstable(&mut self)
+        where
+            T: Ord,
+        {
+            self.sort_unstable();
+        }
+
         fn par_sort_unstable_by_key<K, F>(&mut self, f: F)
         where
             K: Ord,
@@ -98,4 +111,34 @@ mod fallback {
             self.sort_unstable_by_key(f)
         }
     }
+
+    /// Extension trait to add Rayon-like methods to standard Iterators.
+    pub trait ParallelIteratorExt: Iterator {
+        fn flat_map_iter<U, F>(self, f: F) -> std::iter::FlatMap<Self, U, F>
+        where
+            Self: Sized,
+            U: IntoIterator,
+            F: FnMut(Self::Item) -> U,
+        {
+            self.flat_map(f)
+        }
+
+        fn try_reduce<T, E, ID, OP>(mut self, identity: ID, mut op: OP) -> Result<T, E>
+        where
+            Self: Sized + Iterator<Item = Result<T, E>>,
+            ID: Fn() -> T,
+            OP: FnMut(T, T) -> Result<T, E>,
+        {
+            let mut acc = identity();
+            for item in self {
+                match item {
+                    Ok(v) => acc = op(acc, v)?,
+                    Err(e) => return Err(e),
+                }
+            }
+            Ok(acc)
+        }
+    }
+
+    impl<I: Iterator> ParallelIteratorExt for I {}
 }
