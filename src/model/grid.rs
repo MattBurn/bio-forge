@@ -248,6 +248,10 @@ impl<'a, T> GridNeighborhood<'a, T> {
 }
 
 /// Iterator that yields items strictly within the Euclidean radius.
+///
+/// This iterator filters candidates from [`GridNeighborhood`] using the stored positions
+/// and the query center/radius, returning only items whose distance to the center is
+/// less than or equal to the specified radius.
 pub struct ExactGridNeighborhood<'a, T> {
     inner: GridNeighborhood<'a, T>,
 }
