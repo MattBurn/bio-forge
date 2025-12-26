@@ -134,7 +134,7 @@ pub fn add_hydrogens(structure: &mut Structure, config: &HydroConfig) -> Result<
 ///
 /// # Returns
 ///
-/// A `Grid` containing positions and residue indices of N and O atoms.
+/// A `Grid` containing positions and residue indices of all N, O, and F atoms.
 fn build_acceptor_grid(structure: &Structure) -> Grid<(usize, usize)> {
     let atoms: Vec<(Point, (usize, usize))> = structure
         .iter_chains()
@@ -344,7 +344,7 @@ fn select_neutral_his(
 /// # Arguments
 ///
 /// * `residue` - Histidine residue being evaluated.
-/// * `grid` - Grid of acceptor atoms (N/O) with their residue indices.
+/// * `grid` - Grid of acceptor atoms (N/O/F) in the structure.
 /// * `indices` - (chain_idx, res_idx) of the current residue.
 ///
 /// # Returns
