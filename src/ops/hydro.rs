@@ -375,7 +375,7 @@ fn optimize_his_network(
 ///
 /// Computes the hypothetical hydrogen position for an sp2 nitrogen and sums the
 /// scores of valid H-bonds formed with nearby acceptors. A valid H-bond must
-/// satisfy both distance (< 2.5Å H...A) and angle (> 120° N-H...A) constraints.
+/// satisfy both distance (< 2.7Å H...A) and angle (> 90° N-H...A) constraints.
 ///
 /// # Arguments
 ///
@@ -426,14 +426,14 @@ fn calculate_h_bond_score(
         let h_a_vec = a_pos - h_pos;
         let dist_sq = h_a_vec.norm_squared();
 
-        if dist_sq > 2.5 * 2.5 {
+        if dist_sq > 2.7 * 2.7 {
             continue;
         }
 
         let h_a_dir = h_a_vec.normalize();
         let cos_theta = h_dir.dot(&h_a_dir);
 
-        if cos_theta > 0.5 {
+        if cos_theta > 0.0 {
             score += (1.0 / dist_sq) * (cos_theta * cos_theta);
         }
     }
