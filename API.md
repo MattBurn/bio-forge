@@ -316,6 +316,31 @@ const url = URL.createObjectURL(blob);
 
 ---
 
+## Memory Management
+
+All classes (`Structure`, `Topology`, `Template`) expose a `free()` method to manually release WASM memory.
+
+```typescript
+const structure = Structure.fromPdb(pdbContent);
+// ... use structure ...
+structure.free(); // Explicitly release memory
+```
+
+**When to call `free()`:**
+
+- Long-running applications processing many structures
+- Memory-constrained environments
+- After finished using large structures
+
+**When `free()` is optional:**
+
+- Short-lived scripts where the page/process will terminate
+- Modern browsers with adequate memory headroom
+
+> **Warning:** Accessing an object after calling `free()` will throw an error.
+
+---
+
 ## Platform Support
 
 The WASM package is built with `wasm-pack --target bundler` and optimized for use with modern JavaScript bundlers.
