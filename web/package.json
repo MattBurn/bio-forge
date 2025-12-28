@@ -9,6 +9,7 @@
     "build": "next build",
     "build:full": "npm run wasm && npm run build",
     "start": "next start",
+    "type-check": "tsc --noEmit",
     "lint": "next lint",
     "format": "prettier --write ."
   },
