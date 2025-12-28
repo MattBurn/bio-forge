@@ -46,3 +46,37 @@ jobs:
 
       - name: Build WASM
         run: wasm-pack build crates/bio-forge-wasm --target bundler
+
+  web:
+    name: Web App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: "latest"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./web
+
+      - name: Run lint
+        run: npx eslint .
+        working-directory: ./web
+
+      - name: Run type check
+        run: npx tsc --noEmit
+        working-directory: ./web
+
+      - name: Build web app
+        run: npm run build:full
+        working-directory: ./web
