@@ -61,7 +61,7 @@ jobs:
           version: "latest"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
@@ -69,12 +69,12 @@ jobs:
         run: npm install
         working-directory: ./web
 
-      - name: Run lint
-        run: npx eslint .
+      - name: Run type check
+        run: npm run type-check
         working-directory: ./web
 
-      - name: Run type check
-        run: npx tsc --noEmit
+      - name: Run lint
+        run: npm run lint
         working-directory: ./web
 
       - name: Build web app
