@@ -18,7 +18,7 @@ import {
   DownloadIcon,
   LoaderIcon,
   GithubIcon,
-  CubeIcon,
+  BoxIcon,
   ArchiveIcon,
   FileTextIcon,
   MenuIcon,
@@ -116,7 +116,7 @@ export function AppHeader() {
 
         <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
           <div className="size-8 sm:size-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-            <CubeIcon className="size-4 sm:size-5 text-primary" />
+            <BoxIcon className="size-4 sm:size-5 text-primary" />
           </div>
           <span className="text-lg sm:text-xl font-bold hidden xs:inline">
             <span className="text-primary">Bio</span>Forge
