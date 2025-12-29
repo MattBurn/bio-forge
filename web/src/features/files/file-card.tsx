@@ -369,7 +369,10 @@ function StatusBadge({ status }: { status: FileEntry["status"] }) {
   return (
     <Badge
       variant={variants[status]}
-      className="text-[10px] sm:text-xs px-1.5 sm:px-2"
+      className={cn(
+        "text-[10px] sm:text-xs px-1.5 sm:px-2",
+        status === "processing" && "animate-pulse"
+      )}
     >
       <span className="hidden xs:inline">{labels[status]}</span>
       <span className="xs:hidden">{shortLabels[status]}</span>
