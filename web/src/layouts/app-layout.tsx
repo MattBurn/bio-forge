@@ -48,7 +48,7 @@ export function AppLayout({ header, sidebar, children }: AppLayoutProps) {
             "transition-all duration-300 ease-in-out",
             "w-80",
             // Mobile responsive
-            "max-lg:absolute max-lg:inset-y-16 max-lg:left-0 max-lg:z-30",
+            "max-lg:absolute max-lg:top-14 max-lg:sm:top-16 max-lg:bottom-0 max-lg:left-0 max-lg:z-30",
             !sidebarOpen && "max-lg:-translate-x-full"
           )}
         >
