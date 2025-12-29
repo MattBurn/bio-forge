@@ -32,8 +32,7 @@ export async function initWasm(): Promise<WasmModule> {
 
   if (!initPromise) {
     initPromise = (async () => {
-      const wasmMod = await import("bio-forge");
-      wasmModule = wasmMod as unknown as WasmModule;
+      wasmModule = (await import("bio-forge")) as WasmModule;
       return wasmModule;
     })();
   }
