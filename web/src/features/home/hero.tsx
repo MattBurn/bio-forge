@@ -69,11 +69,7 @@ export function Hero() {
               <ChevronRightIcon className="size-5" />
             </Button>
           </Link>
-          <a
-            href="https://github.com/TKanX/bio-forge/releases"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">
             <Button
               variant="secondary"
               size="lg"

@@ -8,6 +8,7 @@
 
 import { motion } from "framer-motion";
 import { GithubIcon, BookIcon, DownloadIcon } from "@/ui/icons";
+import { GITHUB_URL, RUST_DOCS_URL, RELEASES_URL } from "@/lib";
 
 // ============================================================================
 // Data
@@ -18,19 +19,19 @@ const links = [
     icon: GithubIcon,
     title: "GitHub",
     description: "Source code and issues",
-    href: "https://github.com/TKanX/bio-forge",
+    href: GITHUB_URL,
   },
   {
     icon: BookIcon,
     title: "Documentation",
     description: "API reference and guides",
-    href: "https://docs.rs/bio-forge",
+    href: RUST_DOCS_URL,
   },
   {
     icon: DownloadIcon,
     title: "Releases",
     description: "Download for Windows, macOS, Linux",
-    href: "https://github.com/TKanX/bio-forge/releases",
+    href: RELEASES_URL,
   },
 ];
 

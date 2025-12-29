@@ -26,6 +26,7 @@ import {
 } from "@/ui/icons";
 import { showError, useUIStore } from "@/state";
 import { useProcessor } from "@/state/hooks";
+import { GITHUB_URL } from "@/lib";
 
 // ============================================================================
 // Component
@@ -130,11 +131,7 @@ export function AppHeader() {
               Home
             </Button>
           </Link>
-          <a
-            href="https://github.com/TKanX/bio-forge"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
             <Button variant="ghost" size="sm">
               <GithubIcon className="size-4" />
               GitHub
