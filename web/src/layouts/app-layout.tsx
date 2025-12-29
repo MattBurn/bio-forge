@@ -8,6 +8,7 @@
 
 import { type ReactNode } from "react";
 import { useUIStore } from "@/state";
+import { useKeyboardShortcuts } from "@/state/hooks";
 import { cn } from "@/lib";
 
 // ============================================================================
@@ -29,6 +30,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ header, sidebar, children }: AppLayoutProps) {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+
+  // Enable global keyboard shortcuts
+  useKeyboardShortcuts();
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
