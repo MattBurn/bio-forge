@@ -116,7 +116,7 @@ flowchart TD
 - **Preclean** – Optionally removes existing solvent/ions before new placement.
 - **Bounds** – Computes bounding box and box vectors with configured margins.
 - **Translate** – Recenters solute so the solvent box origin is at margin offsets.
-- **GridPlace** – Populates a 3D lattice with HOH templates, skipping clashes via `SpatialGrid` checks.
+- **GridPlace** – Populates a 3D lattice with HOH templates, skipping clashes via `Grid` checks.
 - **RandomRotate** – Orients each water copy with random Euler rotations for diversity.
 - **ReplaceIons** – Swaps selected waters with ions until the target charge is met, using RNG for distribution and reporting failure if insufficient.
 - **Finalize** – Appends the solvent chain and updates the structure's periodic box.
