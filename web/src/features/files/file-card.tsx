@@ -148,11 +148,12 @@ export function FileCard({ file }: FileCardProps) {
           onClick={() => toggleExpanded(file.id)}
         >
           {/* Selection checkbox */}
-          <Checkbox
-            checked={isSelected}
-            onChange={() => toggleSelection(file.id)}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={isSelected}
+              onChange={() => toggleSelection(file.id)}
+            />
+          </div>
 
           {/* File info - responsive layout */}
           <div className="flex-1 min-w-0">
