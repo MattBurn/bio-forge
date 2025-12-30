@@ -27,16 +27,23 @@ import {
  */
 export function useProcessor() {
   /** Batch file store selectors with shallow comparison */
-  const { files, selectedIds, templates, updateFileStatus, updateFileInfo } =
-    useFileStore(
-      useShallow((s) => ({
-        files: s.files,
-        selectedIds: s.selectedIds,
-        templates: s.templates,
-        updateFileStatus: s.updateFileStatus,
-        updateFileInfo: s.updateFileInfo,
-      }))
-    );
+  const {
+    files,
+    selectedIds,
+    templates,
+    updateFileStatus,
+    updateFileResult,
+    clearFileTopology,
+  } = useFileStore(
+    useShallow((s) => ({
+      files: s.files,
+      selectedIds: s.selectedIds,
+      templates: s.templates,
+      updateFileStatus: s.updateFileStatus,
+      updateFileResult: s.updateFileResult,
+      clearFileTopology: s.clearFileTopology,
+    }))
+  );
 
   /** Batch pipeline store selectors with shallow comparison */
   const {
@@ -151,7 +158,10 @@ export function useProcessor() {
 
   /**
    * Internal: Execute pipeline on given files.
-   * Mutates structures in-place and updates file info.
+   *
+   * Mutates structures in-place and updates file info and topology.
+   * Existing topology is cleared before each run since structure
+   * mutations invalidate the bond graph.
    */
   const executeOnFiles = useCallback(
     async (targetFiles: FileEntry[]) => {
@@ -164,6 +174,7 @@ export function useProcessor() {
       let successCount = 0;
 
       for (const file of targetFiles) {
+        clearFileTopology(file.id);
         updateFileStatus(file.id, "processing");
         await yieldToEventLoop();
 
@@ -174,8 +185,7 @@ export function useProcessor() {
             templates.length > 0 ? templates : undefined
           );
 
-          updateFileInfo(file.id, result.info);
-          updateFileStatus(file.id, "completed");
+          updateFileResult(file.id, result.info, result.topology);
           successCount++;
         } catch (error) {
           const message =
@@ -197,7 +207,14 @@ export function useProcessor() {
         );
       }
     },
-    [templates, config, updateFileStatus, updateFileInfo, setProcessing]
+    [
+      templates,
+      config,
+      updateFileStatus,
+      updateFileResult,
+      clearFileTopology,
+      setProcessing,
+    ]
   );
 
   /**
