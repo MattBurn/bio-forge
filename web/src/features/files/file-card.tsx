@@ -69,8 +69,11 @@ export function FileCard({ file }: FileCardProps) {
 
   const viewerData = useMemo(() => {
     if (file.status === "completed") {
+      const bytes = file.topology
+        ? file.topology.toMmcifBytes()
+        : file.structure.toMmcifBytes();
       return {
-        data: file.structure.toMmcifBytes(),
+        data: bytes,
         format: "mmcif" as const,
       };
     }
@@ -79,7 +82,14 @@ export function FileCard({ file }: FileCardProps) {
       format: file.format,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version triggers re-render on structure mutation
-  }, [file.status, file.structure, file.rawBytes, file.format, file.version]);
+  }, [
+    file.status,
+    file.structure,
+    file.topology,
+    file.rawBytes,
+    file.format,
+    file.version,
+  ]);
 
   const handleDownload = useCallback(
     async (targetFormat: "pdb" | "mmcif") => {
@@ -88,8 +98,12 @@ export function FileCard({ file }: FileCardProps) {
 
       try {
         setIsConverting(true);
-        const bytes =
-          targetFormat === "pdb"
+        // Use topology export (with bonds) if available, otherwise structure
+        const bytes = file.topology
+          ? targetFormat === "pdb"
+            ? file.topology.toPdbBytes()
+            : file.topology.toMmcifBytes()
+          : targetFormat === "pdb"
             ? file.structure.toPdbBytes()
             : file.structure.toMmcifBytes();
 
@@ -112,7 +126,7 @@ export function FileCard({ file }: FileCardProps) {
         setIsConverting(false);
       }
     },
-    [file.name, file.structure]
+    [file.name, file.structure, file.topology]
   );
 
   const allChains = file.info?.chains ?? [];
