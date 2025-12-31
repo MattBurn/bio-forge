@@ -8,6 +8,7 @@ import type {
   StructureFormat,
   StructureInfo,
   WasmStructure,
+  WasmTopology,
   WasmTemplate,
 } from "../wasm";
 
@@ -43,6 +44,8 @@ export interface FileEntry {
   readonly rawBytes: Uint8Array;
   /** Live WASM structure object (for all operations) */
   structure: WasmStructure;
+  /** Topology snapshot with bond connectivity (if generated) */
+  topology?: WasmTopology;
   /** Current processing status */
   status: FileStatus;
   /** Error message if status is 'error' */

@@ -31,7 +31,9 @@ import {
 export interface PipelineResult {
   /** Updated structure info */
   info: StructureInfo;
-  /** Bond count (if topology was built) */
+  /** Topology snapshot with bond connectivity (if generated) */
+  topology?: WasmTopology;
+  /** Bond count (convenience, undefined if no topology) */
   bondCount?: number;
 }
 
@@ -58,7 +60,7 @@ export class PipelineError extends Error {
  * @param file - File entry with structure to process
  * @param config - Pipeline configuration
  * @param templates - Optional template entries for topology building
- * @returns Pipeline result with updated info
+ * @returns Pipeline result with updated info and optional topology
  * @throws PipelineError if any step fails
  */
 export function executePipeline(
@@ -67,7 +69,8 @@ export function executePipeline(
   templates?: TemplateEntry[]
 ): PipelineResult {
   const structure = file.structure;
-  let topology: WasmTopology | null = null;
+
+  let topology: WasmTopology | undefined;
 
   try {
     // Step 1: Clean
@@ -105,14 +108,12 @@ export function executePipeline(
 
     const info = getStructureInfo(structure);
 
-    return { info, bondCount };
+    return { info, topology, bondCount };
   } catch (error) {
+    topology?.free();
+
     const message = error instanceof Error ? error.message : "Unknown error";
     throw new PipelineError(message);
-  } finally {
-    // Clean up topology (structure is NOT freed - it's still used)
-    // Note: Templates are NOT freed here - they're owned by the store
-    topology?.free();
   }
 }
 

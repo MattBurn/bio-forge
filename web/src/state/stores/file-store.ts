@@ -10,6 +10,7 @@ import type {
   FileStatus,
   TemplateEntry,
   StructureInfo,
+  WasmTopology,
 } from "@/core";
 
 // ============================================================================
@@ -35,6 +36,12 @@ interface FileActions {
   // File updates
   updateFileStatus: (id: string, status: FileStatus, error?: string) => void;
   updateFileInfo: (id: string, info: StructureInfo) => void;
+  updateFileResult: (
+    id: string,
+    info: StructureInfo,
+    topology?: WasmTopology
+  ) => void;
+  clearFileTopology: (id: string) => void;
 
   // Selection
   selectFile: (id: string) => void;
@@ -56,6 +63,18 @@ interface FileActions {
 type FileStore = FileState & FileActions;
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Safely free a file's WASM resources (structure and topology).
+ */
+function freeFileResources(file: FileEntry): void {
+  file.structure.free();
+  file.topology?.free();
+}
+
+// ============================================================================
 // Store
 // ============================================================================
 
@@ -69,46 +88,55 @@ export const useFileStore = create<FileStore>((set, get) => ({
       files: [...state.files, ...files],
     })),
 
-  removeFile: (id) =>
-    set((state) => {
-      // Free WASM resource before removing
-      const file = state.files.find((f) => f.id === id);
-      file?.structure.free();
+  removeFile: (id) => {
+    // Query: capture resource reference before state update
+    const file = get().files.find((f) => f.id === id);
 
+    // Mutate: pure immutable state update
+    set((state) => {
       const newSelectedIds = new Set(state.selectedIds);
       newSelectedIds.delete(id);
       return {
         files: state.files.filter((f) => f.id !== id),
         selectedIds: newSelectedIds,
       };
-    }),
+    });
 
-  removeFiles: (ids) =>
+    // Cleanup: free WASM resources after state update
+    if (file) {
+      freeFileResources(file);
+    }
+  },
+
+  removeFiles: (ids) => {
+    // Query: capture resource references before state update
+    const idSet = new Set(ids);
+    const filesToRemove = get().files.filter((f) => idSet.has(f.id));
+
+    // Mutate: pure immutable state update
     set((state) => {
-      const idSet = new Set(ids);
-
-      // Free WASM resources before removing
-      state.files
-        .filter((f) => idSet.has(f.id))
-        .forEach((f) => f.structure.free());
-
       const newSelectedIds = new Set(state.selectedIds);
       ids.forEach((id) => newSelectedIds.delete(id));
       return {
         files: state.files.filter((f) => !idSet.has(f.id)),
         selectedIds: newSelectedIds,
       };
-    }),
+    });
 
-  clearFiles: () =>
-    set((state) => {
-      // Free all WASM resources
-      state.files.forEach((f) => f.structure.free());
-      return {
-        files: [],
-        selectedIds: new Set(),
-      };
-    }),
+    // Cleanup: free WASM resources after state update
+    filesToRemove.forEach((f) => freeFileResources(f));
+  },
+
+  clearFiles: () => {
+    // Query: capture resource references before state update
+    const filesToClear = get().files;
+
+    // Mutate: pure immutable state update
+    set({ files: [], selectedIds: new Set() });
+
+    // Cleanup: free WASM resources after state update
+    filesToClear.forEach((f) => freeFileResources(f));
+  },
 
   updateFileStatus: (id, status, error) =>
     set((state) => ({
@@ -131,6 +159,46 @@ export const useFileStore = create<FileStore>((set, get) => ({
         f.id === id ? { ...f, info, status: "ready" as const } : f
       ),
     })),
+
+  updateFileResult: (id, info, topology) => {
+    // Query: capture old topology reference before state update
+    const oldTopology = get().files.find((f) => f.id === id)?.topology;
+
+    // Mutate: pure immutable state update
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id !== id
+          ? f
+          : {
+              ...f,
+              info,
+              topology,
+              status: "completed" as const,
+              version: f.version + 1,
+            }
+      ),
+    }));
+
+    // Cleanup: free old topology if it has been replaced or cleared
+    if (oldTopology && oldTopology !== topology) {
+      oldTopology.free();
+    }
+  },
+
+  clearFileTopology: (id) => {
+    // Query: capture topology reference before state update
+    const oldTopology = get().files.find((f) => f.id === id)?.topology;
+
+    // Mutate: pure immutable state update
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id !== id ? f : { ...f, topology: undefined }
+      ),
+    }));
+
+    // Cleanup: free topology after state update
+    oldTopology?.free();
+  },
 
   selectFile: (id) =>
     set((state) => {
@@ -167,46 +235,51 @@ export const useFileStore = create<FileStore>((set, get) => ({
     get().removeFiles([...selectedIds]);
   },
 
-  removeCompletedFiles: () =>
-    set((state) => {
-      const completedFiles = state.files.filter(
-        (f) => f.status === "completed"
-      );
-      // Free WASM resources
-      completedFiles.forEach((f) => f.structure.free());
+  removeCompletedFiles: () => {
+    // Query: capture completed files before state update
+    const completedFiles = get().files.filter((f) => f.status === "completed");
+    const completedIds = new Set(completedFiles.map((f) => f.id));
 
-      const completedIds = new Set(completedFiles.map((f) => f.id));
-      const newSelectedIds = new Set(
+    // Mutate: pure immutable state update
+    set((state) => ({
+      files: state.files.filter((f) => f.status !== "completed"),
+      selectedIds: new Set(
         [...state.selectedIds].filter((id) => !completedIds.has(id))
-      );
-      return {
-        files: state.files.filter((f) => f.status !== "completed"),
-        selectedIds: newSelectedIds,
-      };
-    }),
+      ),
+    }));
+
+    // Cleanup: free WASM resources after state update
+    completedFiles.forEach((f) => freeFileResources(f));
+  },
 
   addTemplates: (templates) =>
     set((state) => ({
       templates: [...state.templates, ...templates],
     })),
 
-  removeTemplate: (id) =>
-    set((state) => {
-      // Free WASM resource before removing
-      const template = state.templates.find((t) => t.id === id);
-      template?.template.free();
+  removeTemplate: (id) => {
+    // Query: capture template reference before state update
+    const template = get().templates.find((t) => t.id === id);
 
-      return {
-        templates: state.templates.filter((t) => t.id !== id),
-      };
-    }),
+    // Mutate: pure immutable state update
+    set((state) => ({
+      templates: state.templates.filter((t) => t.id !== id),
+    }));
 
-  clearTemplates: () =>
-    set((state) => {
-      // Free all WASM resources
-      state.templates.forEach((t) => t.template.free());
-      return { templates: [] };
-    }),
+    // Cleanup: free WASM resource after state update
+    template?.template.free();
+  },
+
+  clearTemplates: () => {
+    // Query: capture template references before state update
+    const templatesToClear = get().templates;
+
+    // Mutate: pure immutable state update
+    set({ templates: [] });
+
+    // Cleanup: free WASM resources after state update
+    templatesToClear.forEach((t) => t.template.free());
+  },
 }));
 
 // ============================================================================
