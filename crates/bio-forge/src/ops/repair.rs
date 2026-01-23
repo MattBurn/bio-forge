@@ -24,6 +24,12 @@ const CARBOXYL_OCO_ANGLE_DEG: f64 = 126.0;
 /// Standard P-O bond length in phosphate groups (Å).
 const PHOSPHATE_PO_BOND_LENGTH: f64 = 1.48;
 
+/// Alignment pair mapping residue position to template position.
+type AlignmentPairs = Vec<(Point, Point)>;
+
+/// Missing atom data: (name, element, template_position).
+type MissingAtoms = Vec<(String, Element, Point)>;
+
 /// Repairs every standard residue in a structure by invoking the internal repair logic.
 ///
 /// Non-standard residues (heterogens, ions, solvent) are left untouched to avoid tampering
@@ -203,7 +209,7 @@ fn collect_alignment_data(
     residue: &Residue,
     template: db::TemplateView,
     status: &TerminalStatus,
-) -> (Vec<(Point, Point)>, Vec<(String, Element, Point)>) {
+) -> (AlignmentPairs, MissingAtoms) {
     let mut align_pairs = Vec::new();
     let mut missing_atoms = Vec::new();
 
