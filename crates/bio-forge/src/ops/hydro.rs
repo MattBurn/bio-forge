@@ -1111,6 +1111,16 @@ mod tests {
         residue
     }
 
+    fn distance(a: Point, b: Point) -> f64 {
+        (a - b).norm()
+    }
+
+    fn angle_deg(a: Point, center: Point, b: Point) -> f64 {
+        let v1 = (a - center).normalize();
+        let v2 = (b - center).normalize();
+        v1.dot(&v2).clamp(-1.0, 1.0).acos().to_degrees()
+    }
+
     #[test]
     fn titratable_templates_exist_in_database() {
         let expected = [
@@ -1460,6 +1470,177 @@ mod tests {
         assert!(
             residue.has_atom("HO3'"),
             "HO3' should be added for 3' terminal"
+        );
+    }
+
+    #[test]
+    fn n_terminal_h_has_tetrahedral_geometry() {
+        let residue = n_terminal_residue(98);
+        let mut structure = structure_with_residue(residue);
+
+        add_hydrogens(&mut structure, &HydroConfig::default()).expect("hydrogenation succeeds");
+
+        let residue = structure.find_residue("A", 98, None).unwrap();
+        let n = residue.atom("N").expect("N").pos;
+        let ca = residue.atom("CA").expect("CA").pos;
+        let h1 = residue.atom("H1").expect("H1").pos;
+        let h2 = residue.atom("H2").expect("H2").pos;
+        let h3 = residue.atom("H3").expect("H3").pos;
+
+        let n_h1_dist = distance(n, h1);
+        let n_h2_dist = distance(n, h2);
+        let n_h3_dist = distance(n, h3);
+        assert!(
+            (n_h1_dist - NH_BOND_LENGTH).abs() < 0.1,
+            "N-H1 distance {n_h1_dist:.3} should be ~{NH_BOND_LENGTH} Å"
+        );
+        assert!(
+            (n_h2_dist - NH_BOND_LENGTH).abs() < 0.1,
+            "N-H2 distance {n_h2_dist:.3} should be ~{NH_BOND_LENGTH} Å"
+        );
+        assert!(
+            (n_h3_dist - NH_BOND_LENGTH).abs() < 0.1,
+            "N-H3 distance {n_h3_dist:.3} should be ~{NH_BOND_LENGTH} Å"
+        );
+
+        let ca_n_h1_angle = angle_deg(ca, n, h1);
+        let ca_n_h2_angle = angle_deg(ca, n, h2);
+        let ca_n_h3_angle = angle_deg(ca, n, h3);
+        assert!(
+            (ca_n_h1_angle - SP3_ANGLE).abs() < 5.0,
+            "CA-N-H1 angle {ca_n_h1_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+        assert!(
+            (ca_n_h2_angle - SP3_ANGLE).abs() < 5.0,
+            "CA-N-H2 angle {ca_n_h2_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+        assert!(
+            (ca_n_h3_angle - SP3_ANGLE).abs() < 5.0,
+            "CA-N-H3 angle {ca_n_h3_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+
+        let h1_n_h2_angle = angle_deg(h1, n, h2);
+        let h2_n_h3_angle = angle_deg(h2, n, h3);
+        let h1_n_h3_angle = angle_deg(h1, n, h3);
+        assert!(
+            (h1_n_h2_angle - SP3_ANGLE).abs() < 5.0,
+            "H1-N-H2 angle {h1_n_h2_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+        assert!(
+            (h2_n_h3_angle - SP3_ANGLE).abs() < 5.0,
+            "H2-N-H3 angle {h2_n_h3_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+        assert!(
+            (h1_n_h3_angle - SP3_ANGLE).abs() < 5.0,
+            "H1-N-H3 angle {h1_n_h3_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+    }
+
+    #[test]
+    fn c_terminal_hoxt_has_tetrahedral_geometry() {
+        let residue = c_terminal_residue(99);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(2.0),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).expect("hydrogenation succeeds");
+
+        let residue = structure.find_residue("A", 99, None).unwrap();
+        let c = residue.atom("C").expect("C").pos;
+        let oxt = residue.atom("OXT").expect("OXT").pos;
+        let hoxt = residue.atom("HOXT").expect("HOXT").pos;
+
+        let oxt_hoxt_dist = distance(oxt, hoxt);
+        assert!(
+            (oxt_hoxt_dist - COOH_BOND_LENGTH).abs() < 0.1,
+            "OXT-HOXT distance {oxt_hoxt_dist:.3} should be ~{COOH_BOND_LENGTH} Å"
+        );
+
+        let c_oxt_hoxt_angle = angle_deg(c, oxt, hoxt);
+        assert!(
+            (c_oxt_hoxt_angle - SP3_ANGLE).abs() < 5.0,
+            "C-OXT-HOXT angle {c_oxt_hoxt_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+    }
+
+    #[test]
+    fn five_prime_ho5_has_tetrahedral_geometry() {
+        let residue = five_prime_residue_without_phosphate(80);
+        let mut structure = structure_with_residue(residue);
+
+        add_hydrogens(&mut structure, &HydroConfig::default()).expect("hydrogenation succeeds");
+
+        let residue = structure.find_residue("A", 80, None).unwrap();
+        let c5 = residue.atom("C5'").expect("C5'").pos;
+        let o5 = residue.atom("O5'").expect("O5'").pos;
+        let ho5 = residue.atom("HO5'").expect("HO5'").pos;
+
+        let o5_ho5_dist = distance(o5, ho5);
+        assert!(
+            (o5_ho5_dist - OH_BOND_LENGTH).abs() < 0.1,
+            "O5'-HO5' distance {o5_ho5_dist:.3} should be ~{OH_BOND_LENGTH} Å"
+        );
+
+        let c5_o5_ho5_angle = angle_deg(c5, o5, ho5);
+        assert!(
+            (c5_o5_ho5_angle - SP3_ANGLE).abs() < 5.0,
+            "C5'-O5'-HO5' angle {c5_o5_ho5_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+    }
+
+    #[test]
+    fn three_prime_ho3_has_tetrahedral_geometry() {
+        let residue = three_prime_residue(81);
+        let mut structure = structure_with_residue(residue);
+
+        add_hydrogens(&mut structure, &HydroConfig::default()).expect("hydrogenation succeeds");
+
+        let residue = structure.find_residue("A", 81, None).unwrap();
+        let c3 = residue.atom("C3'").expect("C3'").pos;
+        let o3 = residue.atom("O3'").expect("O3'").pos;
+        let ho3 = residue.atom("HO3'").expect("HO3'").pos;
+
+        let o3_ho3_dist = distance(o3, ho3);
+        assert!(
+            (o3_ho3_dist - OH_BOND_LENGTH).abs() < 0.1,
+            "O3'-HO3' distance {o3_ho3_dist:.3} should be ~{OH_BOND_LENGTH} Å"
+        );
+
+        let c3_o3_ho3_angle = angle_deg(c3, o3, ho3);
+        assert!(
+            (c3_o3_ho3_angle - SP3_ANGLE).abs() < 5.0,
+            "C3'-O3'-HO3' angle {c3_o3_ho3_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+    }
+
+    #[test]
+    fn five_prime_phosphate_hop3_has_tetrahedral_geometry() {
+        let residue = five_prime_residue_with_phosphate(82);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(5.5),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).expect("hydrogenation succeeds");
+
+        let residue = structure.find_residue("A", 82, None).unwrap();
+        let p = residue.atom("P").expect("P").pos;
+        let op3 = residue.atom("OP3").expect("OP3").pos;
+        let hop3 = residue.atom("HOP3").expect("HOP3").pos;
+
+        let op3_hop3_dist = distance(op3, hop3);
+        assert!(
+            (op3_hop3_dist - OH_BOND_LENGTH).abs() < 0.1,
+            "OP3-HOP3 distance {op3_hop3_dist:.3} should be ~{OH_BOND_LENGTH} Å"
+        );
+
+        let p_op3_hop3_angle = angle_deg(p, op3, hop3);
+        assert!(
+            (p_op3_hop3_angle - SP3_ANGLE).abs() < 5.0,
+            "P-OP3-HOP3 angle {p_op3_hop3_angle:.1}° should be ~{SP3_ANGLE}°"
         );
     }
 }
