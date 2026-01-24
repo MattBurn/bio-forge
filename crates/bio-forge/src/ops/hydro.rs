@@ -1294,6 +1294,7 @@ mod tests {
                     .unwrap(),
                 &config,
                 None,
+                None,
                 None
             ),
             Some("ASH".to_string())
@@ -1310,6 +1311,7 @@ mod tests {
                     .next()
                     .unwrap(),
                 &config,
+                None,
                 None,
                 None
             ),
@@ -1330,6 +1332,7 @@ mod tests {
                     .unwrap(),
                 &config,
                 None,
+                None,
                 None
             ),
             Some("LYN".to_string())
@@ -1346,6 +1349,7 @@ mod tests {
                     .next()
                     .unwrap(),
                 &config,
+                None,
                 None,
                 None
             ),
@@ -1376,6 +1380,7 @@ mod tests {
                     .unwrap(),
                 &config,
                 None,
+                None,
                 None
             ),
             Some("HIE".to_string())
@@ -1393,6 +1398,7 @@ mod tests {
                     .next()
                     .unwrap(),
                 &acid_config,
+                None,
                 None,
                 None
             ),
@@ -1470,6 +1476,7 @@ mod tests {
                     .next()
                     .unwrap(),
                 &config,
+                None,
                 None,
                 None
             ),
