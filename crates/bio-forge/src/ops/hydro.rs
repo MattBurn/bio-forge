@@ -865,3 +865,50 @@ fn construct_5_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
     residue.add_atom(Atom::new("HO5'", Element::H, h_pos));
     Ok(())
 }
+
+/// Adds hydrogens to 5'-terminal phosphate groups based on pH.
+///
+/// At physiological pH (≥6.5), the terminal phosphate carries two negative charges
+/// and requires no protons. Below this threshold, one proton is added to OP3.
+fn construct_5_prime_phosphate_hydrogens(
+    residue: &mut Residue,
+    target_ph: Option<f64>,
+) -> Result<(), Error> {
+    let ph = effective_terminal_ph(target_ph);
+
+    if ph >= PHOSPHATE_PKA2 {
+        residue.remove_atom("HOP3");
+        residue.remove_atom("HOP2");
+        return Ok(());
+    }
+
+    if residue.has_atom("HOP3") {
+        return Ok(());
+    }
+
+    let op3_pos = residue
+        .atom("OP3")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "OP3"))?
+        .pos;
+    let p_pos = residue
+        .atom("P")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "P"))?
+        .pos;
+
+    let reference_pos = residue
+        .atom("OP1")
+        .or_else(|| residue.atom("OP2"))
+        .map(|a| a.pos);
+
+    let h_pos = place_hydroxyl_hydrogen(
+        op3_pos,
+        p_pos,
+        reference_pos,
+        OH_BOND_LENGTH,
+        SP3_ANGLE,
+        180.0,
+    );
+
+    residue.add_atom(Atom::new("HOP3", Element::H, h_pos));
+    Ok(())
+}
