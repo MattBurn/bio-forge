@@ -38,6 +38,12 @@ const N_TERM_PKA: f64 = 8.0;
 const C_TERM_PKA: f64 = 3.1;
 /// Henderson–Hasselbalch breakpoint for the second dissociation of terminal phosphate.
 const PHOSPHATE_PKA2: f64 = 6.5;
+/// Default assumed pH for terminal state decisions when no explicit pH is specified.
+const DEFAULT_TERMINAL_PH: f64 = 7.0;
+/// Maximum sulfur–sulfur distance (Å) for disulfide bridge detection.
+const DISULFIDE_SG_THRESHOLD: f64 = 2.2;
+/// Maximum nitrogen–oxygen distance (Å) for HIS-carboxylate salt bridge detection.
+const SALT_BRIDGE_DISTANCE: f64 = 4.0;
 /// Standard sp³ tetrahedral bond angle (degrees).
 const SP3_ANGLE: f64 = 109.5;
 /// Standard N-H bond length (Å).
