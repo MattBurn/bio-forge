@@ -1213,4 +1213,296 @@ mod tests {
         let v2 = (b - center).normalize();
         v1.dot(&v2).clamp(-1.0, 1.0).acos().to_degrees()
     }
+
+    #[test]
+    fn asp_protonates_to_ash_below_pka() {
+        let residue = residue_from_template("ASP", StandardResidue::ASP, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(2.5),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "ASH", "ASP should become ASH below pKa 3.9");
+    }
+
+    #[test]
+    fn asp_remains_deprotonated_above_pka() {
+        let residue = residue_from_template("ASP", StandardResidue::ASP, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "ASP", "ASP should remain ASP above pKa 3.9");
+    }
+
+    #[test]
+    fn asp_preserves_original_name_without_ph() {
+        let residue = residue_from_template("ASP", StandardResidue::ASP, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "ASP", "ASP should be preserved without pH");
+    }
+
+    #[test]
+    fn glu_protonates_to_glh_below_pka() {
+        let residue = residue_from_template("GLU", StandardResidue::GLU, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(3.0),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "GLH", "GLU should become GLH below pKa 4.2");
+    }
+
+    #[test]
+    fn glu_remains_deprotonated_above_pka() {
+        let residue = residue_from_template("GLU", StandardResidue::GLU, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "GLU", "GLU should remain GLU above pKa 4.2");
+    }
+
+    #[test]
+    fn glu_preserves_original_name_without_ph() {
+        let residue = residue_from_template("GLU", StandardResidue::GLU, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "GLU", "GLU should be preserved without pH");
+    }
+
+    #[test]
+    fn lys_deprotonates_to_lyn_above_pka() {
+        let residue = residue_from_template("LYS", StandardResidue::LYS, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(11.0),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "LYN", "LYS should become LYN above pKa 10.5");
+    }
+
+    #[test]
+    fn lys_remains_protonated_below_pka() {
+        let residue = residue_from_template("LYS", StandardResidue::LYS, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "LYS", "LYS should remain LYS below pKa 10.5");
+    }
+
+    #[test]
+    fn lys_preserves_original_name_without_ph() {
+        let residue = residue_from_template("LYS", StandardResidue::LYS, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "LYS", "LYS should be preserved without pH");
+    }
+
+    #[test]
+    fn cys_deprotonates_to_cym_above_pka() {
+        let residue = residue_from_template("CYS", StandardResidue::CYS, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(9.0),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "CYM", "CYS should become CYM above pKa 8.3");
+    }
+
+    #[test]
+    fn cys_remains_protonated_below_pka() {
+        let residue = residue_from_template("CYS", StandardResidue::CYS, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "CYS", "CYS should remain CYS below pKa 8.3");
+    }
+
+    #[test]
+    fn cys_preserves_original_name_without_ph() {
+        let residue = residue_from_template("CYS", StandardResidue::CYS, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "CYS", "CYS should be preserved without pH");
+    }
+
+    #[test]
+    fn cyx_is_preserved_regardless_of_ph() {
+        let mut residue = residue_from_template("CYS", StandardResidue::CYS, 1);
+        residue.name = "CYX".into();
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(9.0),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "CYX", "CYX should be preserved regardless of pH");
+    }
+
+    #[test]
+    fn tyr_deprotonates_to_tym_above_pka() {
+        let residue = residue_from_template("TYR", StandardResidue::TYR, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(11.0),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "TYM", "TYR should become TYM above pKa 10.0");
+    }
+
+    #[test]
+    fn tyr_remains_protonated_below_pka() {
+        let residue = residue_from_template("TYR", StandardResidue::TYR, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "TYR", "TYR should remain TYR below pKa 10.0");
+    }
+
+    #[test]
+    fn tyr_preserves_original_name_without_ph() {
+        let residue = residue_from_template("TYR", StandardResidue::TYR, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "TYR", "TYR should be preserved without pH");
+    }
+
+    #[test]
+    fn arg_deprotonates_to_arn_above_pka() {
+        let residue = residue_from_template("ARG", StandardResidue::ARG, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(13.0),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "ARN", "ARG should become ARN above pKa 12.5");
+    }
+
+    #[test]
+    fn arg_remains_protonated_below_pka() {
+        let residue = residue_from_template("ARG", StandardResidue::ARG, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "ARG", "ARG should remain ARG below pKa 12.5");
+    }
+
+    #[test]
+    fn arg_preserves_original_name_without_ph() {
+        let residue = residue_from_template("ARG", StandardResidue::ARG, 1);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "ARG", "ARG should be preserved without pH");
+    }
 }
