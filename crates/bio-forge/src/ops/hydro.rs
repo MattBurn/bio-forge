@@ -996,3 +996,49 @@ fn place_hydroxyl_hydrogen(
 
     o_pos + h_global * bond_length
 }
+
+/// Computes the optimal rigid transform mapping template anchor points to residue atoms.
+///
+/// Uses Kabsch alignment with safeguards for one- and two-point configurations.
+fn calculate_transform(r_pts: &[Point], t_pts: &[Point]) -> Option<(Matrix3<f64>, Vector3<f64>)> {
+    let n = r_pts.len();
+    if n != t_pts.len() || n == 0 {
+        return None;
+    }
+
+    let r_center = r_pts.iter().map(|p| p.coords).sum::<Vector3<f64>>() / n as f64;
+    let t_center = t_pts.iter().map(|p| p.coords).sum::<Vector3<f64>>() / n as f64;
+
+    if n == 1 {
+        return Some((Matrix3::identity(), r_center - t_center));
+    }
+
+    if n == 2 {
+        let v_r = r_pts[1] - r_pts[0];
+        let v_t = t_pts[1] - t_pts[0];
+        let rot = Rotation3::rotation_between(&v_t, &v_r).unwrap_or_else(Rotation3::identity);
+        let trans = r_center - rot * t_center;
+        return Some((rot.into_inner(), trans));
+    }
+
+    let mut cov = Matrix3::zeros();
+    for (p_r, p_t) in r_pts.iter().zip(t_pts.iter()) {
+        let v_r = p_r.coords - r_center;
+        let v_t = p_t.coords - t_center;
+        cov += v_r * v_t.transpose();
+    }
+
+    let svd = cov.svd(true, true);
+    let u = svd.u?;
+    let v_t = svd.v_t?;
+
+    let mut rot = u * v_t;
+    if rot.determinant() < 0.0 {
+        let mut corr = Matrix3::identity();
+        corr[(2, 2)] = -1.0;
+        rot = u * corr * v_t;
+    }
+
+    let trans = r_center - rot * t_center;
+    Some((rot, trans))
+}
