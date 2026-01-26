@@ -203,3 +203,61 @@ fn apply_non_his_protonation(structure: &mut Structure, ph: f64) {
         }
     });
 }
+
+/// Builds a spatial grid of carboxylate oxygen atoms for salt bridge detection.
+///
+/// ASH/GLH (protonated carboxyls) are excluded because neutral COOH groups
+/// cannot form ionic salt bridges.
+fn build_carboxylate_grid(structure: &Structure, target_ph: Option<f64>) -> Grid<(usize, usize)> {
+    let c_term_deprotonated = c_terminus_is_deprotonated(target_ph);
+
+    let atoms: Vec<(Point, (usize, usize))> = structure
+        .iter_chains()
+        .enumerate()
+        .flat_map(|(c_idx, chain)| {
+            chain
+                .iter_residues()
+                .enumerate()
+                .flat_map(move |(r_idx, residue)| {
+                    let mut positions = Vec::new();
+
+                    // ASP⁻ carboxylate oxygens
+                    if residue.name == "ASP" {
+                        if let Some(od1) = residue.atom("OD1") {
+                            positions.push((od1.pos, (c_idx, r_idx)));
+                        }
+                        if let Some(od2) = residue.atom("OD2") {
+                            positions.push((od2.pos, (c_idx, r_idx)));
+                        }
+                    }
+
+                    // GLU⁻ carboxylate oxygens
+                    if residue.name == "GLU" {
+                        if let Some(oe1) = residue.atom("OE1") {
+                            positions.push((oe1.pos, (c_idx, r_idx)));
+                        }
+                        if let Some(oe2) = residue.atom("OE2") {
+                            positions.push((oe2.pos, (c_idx, r_idx)));
+                        }
+                    }
+
+                    // C-terminal COO⁻ (only if deprotonated)
+                    if residue.position == ResiduePosition::CTerminal
+                        && residue.standard_name.is_some_and(|s| s.is_protein())
+                        && c_term_deprotonated
+                    {
+                        if let Some(o) = residue.atom("O") {
+                            positions.push((o.pos, (c_idx, r_idx)));
+                        }
+                        if let Some(oxt) = residue.atom("OXT") {
+                            positions.push((oxt.pos, (c_idx, r_idx)));
+                        }
+                    }
+
+                    positions
+                })
+        })
+        .collect();
+
+    Grid::new(atoms, SALT_BRIDGE_DISTANCE + 0.5)
+}
