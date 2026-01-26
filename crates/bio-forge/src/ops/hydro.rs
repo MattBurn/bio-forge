@@ -71,8 +71,9 @@ pub struct HydroConfig {
 }
 
 impl Default for HydroConfig {
-    /// Provides biologically reasonable defaults (physiological pH, removal of old hydrogens,
-    /// hydrogen-bond-aware histidine selection, and HIS salt bridge detection).
+    /// Provides biologically reasonable defaults (no protonation state changes,
+    /// removal of old hydrogens, hydrogen-bond-aware histidine selection,
+    /// and HIS salt bridge detection).
     fn default() -> Self {
         Self {
             target_ph: None,
