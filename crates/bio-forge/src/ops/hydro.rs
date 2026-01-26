@@ -591,13 +591,13 @@ fn mark_disulfide_bridges(structure: &mut Structure) {
 /// Spatial grid of acceptor atom (N, O, F) positions mapped to (chain_idx, residue_idx).
 fn build_acceptor_grid(structure: &Structure) -> Grid<(usize, usize)> {
     let atoms: Vec<(Point, (usize, usize))> = structure
-        .iter_chains()
+        .par_chains()
         .enumerate()
         .flat_map(|(c_idx, chain)| {
             chain
-                .iter_residues()
+                .par_residues()
                 .enumerate()
-                .flat_map(move |(r_idx, residue)| {
+                .flat_map_iter(move |(r_idx, residue)| {
                     residue
                         .iter_atoms()
                         .filter(|a| matches!(a.element, Element::N | Element::O | Element::F))
