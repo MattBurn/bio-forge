@@ -803,3 +803,37 @@ fn construct_c_term_hydrogen(residue: &mut Residue, protonated: bool) -> Result<
 
     Ok(())
 }
+
+/// Adds the 3'-terminal hydroxyl hydrogen to nucleic acid residues.
+fn construct_3_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
+    if residue.has_atom("HO3'") {
+        return Ok(());
+    }
+
+    let o3_pos = residue
+        .atom("O3'")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "O3'"))?
+        .pos;
+    let c3_pos = residue
+        .atom("C3'")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "C3'"))?
+        .pos;
+
+    let reference_pos = residue
+        .atom("C4'")
+        .or_else(|| residue.atom("C2'"))
+        .map(|a| a.pos);
+
+    let h_pos = place_hydroxyl_hydrogen(
+        o3_pos,
+        c3_pos,
+        reference_pos,
+        OH_BOND_LENGTH,
+        SP3_ANGLE,
+        180.0,
+    );
+
+    residue.add_atom(Atom::new("HO3'", Element::H, h_pos));
+
+    Ok(())
+}
