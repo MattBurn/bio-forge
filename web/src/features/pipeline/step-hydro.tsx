@@ -85,7 +85,8 @@ export function StepHydro() {
 
       {/* Salt bridge detection */}
       <Checkbox
-        label="Detect salt bridges (HIS → HIP near COO⁻)"
+        label="Detect salt bridges"
+        description="HIS → HIP near carboxylate groups (ASP⁻/GLU⁻/C-term COO⁻). pH-independent geometric detection."
         checked={config.hisSaltBridgeProtonation}
         onChange={(e) =>
           setConfig({ hisSaltBridgeProtonation: e.target.checked })
