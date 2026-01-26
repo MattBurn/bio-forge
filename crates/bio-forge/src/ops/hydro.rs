@@ -155,16 +155,16 @@ pub fn add_hydrogens(structure: &mut Structure, config: &HydroConfig) -> Result<
                         return Ok(());
                     }
 
-                    if residue.standard_name == Some(StandardResidue::HIS) {
-                        if let Some(new_name) = determine_his_protonation(
+                    if let Some(StandardResidue::HIS) = residue.standard_name
+                        && let Some(new_name) = determine_his_protonation(
                             residue,
                             config,
                             acceptor_grid.as_ref(),
                             carboxylate_grid.as_ref(),
                             (c_idx, r_idx),
-                        ) {
-                            residue.name = new_name.into();
-                        }
+                        )
+                    {
+                        residue.name = new_name.into();
                     }
 
                     if config.remove_existing_h {
@@ -305,27 +305,24 @@ fn determine_his_protonation(
     carboxylate_grid: Option<&Grid<(usize, usize)>>,
     self_indices: (usize, usize),
 ) -> Option<String> {
-    if let Some(ph) = config.target_ph {
-        if ph < HIS_HIP_PKA {
-            return Some("HIP".to_string());
-        }
+    if let Some(ph) = config.target_ph
+        && ph < HIS_HIP_PKA
+    {
+        return Some("HIP".to_string());
     }
 
     if config.target_ph.is_none() && !config.his_salt_bridge_protonation {
         return None;
     }
 
-    if config.his_salt_bridge_protonation {
-        if let Some(grid) = carboxylate_grid {
-            if his_forms_salt_bridge(residue, grid, self_indices) {
-                return Some("HIP".to_string());
-            }
-        }
+    if config.his_salt_bridge_protonation
+        && let Some(grid) = carboxylate_grid
+        && his_forms_salt_bridge(residue, grid, self_indices)
+    {
+        return Some("HIP".to_string());
     }
 
-    if config.target_ph.is_none() {
-        return None;
-    }
+    config.target_ph?;
 
     Some(select_neutral_his(
         residue,
