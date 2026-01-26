@@ -1613,4 +1613,355 @@ mod tests {
             "C-term OXT should be in COO⁻ grid with default pH 7.0"
         );
     }
+
+    #[test]
+    fn his_becomes_hip_below_pka_threshold() {
+        let mut structure = his_isolated(1);
+        let config = HydroConfig {
+            target_ph: Some(5.5),
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "HIP", "HIS should become HIP below pKa 6.0");
+    }
+
+    #[test]
+    fn his_does_not_become_hip_above_pka_threshold() {
+        let mut structure = his_isolated(1);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: false,
+            his_strategy: HisStrategy::DirectHIE,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            res.name, "HIE",
+            "HIS should become HIE (not HIP) above pKa 6.0"
+        );
+    }
+
+    #[test]
+    fn his_becomes_hip_when_nd1_near_asp_carboxylate() {
+        let mut structure = his_near_asp(1, 2, 3.5);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: true,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HIP",
+            "HIS near ASP should become HIP via salt bridge"
+        );
+    }
+
+    #[test]
+    fn his_becomes_hip_when_ne2_near_glu_carboxylate() {
+        let mut structure = his_near_glu(1, 2, 3.5);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: true,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HIP",
+            "HIS near GLU should become HIP via salt bridge"
+        );
+    }
+
+    #[test]
+    fn his_becomes_hip_when_near_c_term_carboxylate() {
+        let mut structure = his_near_c_term(1, 2, 3.5);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: true,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HIP",
+            "HIS near C-term COO⁻ should become HIP via salt bridge"
+        );
+    }
+
+    #[test]
+    fn his_remains_neutral_when_beyond_salt_bridge_threshold() {
+        let mut structure = his_near_asp(1, 2, 10.0);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: true,
+            his_strategy: HisStrategy::DirectHIE,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HIE",
+            "HIS beyond salt bridge distance should remain neutral"
+        );
+    }
+
+    #[test]
+    fn his_salt_bridge_detected_without_ph() {
+        let mut structure = his_near_asp(1, 2, 3.5);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: true,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HIP",
+            "salt bridge should be detected even without pH"
+        );
+    }
+
+    #[test]
+    fn his_salt_bridge_skipped_when_option_disabled() {
+        let mut structure = his_near_asp(1, 2, 3.5);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: false,
+            his_strategy: HisStrategy::DirectHIE,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HIE",
+            "salt bridge should be ignored when disabled"
+        );
+    }
+
+    #[test]
+    fn his_uses_direct_hid_strategy() {
+        let mut structure = his_isolated(1);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: false,
+            his_strategy: HisStrategy::DirectHID,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "HID", "DirectHID strategy should produce HID");
+    }
+
+    #[test]
+    fn his_uses_direct_hie_strategy() {
+        let mut structure = his_isolated(1);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: false,
+            his_strategy: HisStrategy::DirectHIE,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(res.name, "HIE", "DirectHIE strategy should produce HIE");
+    }
+
+    #[test]
+    fn his_uses_random_strategy_produces_valid_tautomer() {
+        let mut structure = his_isolated(1);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: false,
+            his_strategy: HisStrategy::Random,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert!(
+            res.name == "HID" || res.name == "HIE",
+            "random strategy should produce either HID or HIE, got {}",
+            res.name
+        );
+    }
+
+    #[test]
+    fn his_uses_hb_network_strategy_defaults_to_hie_without_neighbors() {
+        let mut structure = his_isolated(1);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: false,
+            his_strategy: HisStrategy::HbNetwork,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert!(
+            res.name == "HID" || res.name == "HIE",
+            "HbNetwork strategy should produce HID or HIE"
+        );
+    }
+
+    #[test]
+    fn his_preserves_hid_name_without_ph_and_no_salt_bridge() {
+        let mut residue = residue_from_template("HID", StandardResidue::HIS, 1);
+        residue.name = "HID".into();
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            res.name, "HID",
+            "HID should be preserved without pH and no salt bridge"
+        );
+    }
+
+    #[test]
+    fn his_preserves_hie_name_without_ph_and_no_salt_bridge() {
+        let mut residue = residue_from_template("HIE", StandardResidue::HIS, 1);
+        residue.name = "HIE".into();
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            res.name, "HIE",
+            "HIE should be preserved without pH and no salt bridge"
+        );
+    }
+
+    #[test]
+    fn his_preserves_hip_name_without_ph_and_no_salt_bridge() {
+        let mut residue = residue_from_template("HIP", StandardResidue::HIS, 1);
+        residue.name = "HIP".into();
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: false,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            res.name, "HIP",
+            "HIP should be preserved without pH and no salt bridge"
+        );
+    }
+
+    #[test]
+    fn his_preserves_name_without_ph_when_no_salt_bridge_found() {
+        let mut residue = residue_from_template("HID", StandardResidue::HIS, 1);
+        residue.name = "HID".into();
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: None,
+            his_salt_bridge_protonation: true,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let res = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            res.name, "HID",
+            "HID should be preserved when salt bridge not found"
+        );
+    }
+
+    #[test]
+    fn his_acidic_ph_overrides_salt_bridge_check() {
+        let mut structure = his_near_asp(1, 2, 3.5);
+        let config = HydroConfig {
+            target_ph: Some(5.0),
+            his_salt_bridge_protonation: true,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HIP",
+            "acidic pH should result in HIP (priority 1)"
+        );
+    }
+
+    #[test]
+    fn his_salt_bridge_overrides_strategy_selection() {
+        let mut structure = his_near_asp(1, 2, 3.5);
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: true,
+            his_strategy: HisStrategy::DirectHIE,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HIP",
+            "salt bridge should override strategy (priority 3 > 5)"
+        );
+    }
+
+    #[test]
+    fn his_strategy_applies_only_after_salt_bridge_miss() {
+        let mut structure = his_near_asp(1, 2, 10.0); // Well beyond threshold
+        let config = HydroConfig {
+            target_ph: Some(7.4),
+            his_salt_bridge_protonation: true,
+            his_strategy: HisStrategy::DirectHID,
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let his = structure.find_residue("A", 1, None).unwrap();
+        assert_eq!(
+            his.name, "HID",
+            "strategy should apply when salt bridge not found"
+        );
+    }
 }
