@@ -73,6 +73,7 @@ export function StepHydro() {
       {/* Histidine strategy */}
       <Select
         label="Histidine strategy"
+        description="Only applies when pH is specified and HIS is neutral (pH ≥ 6.0)"
         value={config.hisStrategy}
         onChange={(e) =>
           setConfig({
