@@ -2504,9 +2504,10 @@ mod tests {
     }
 
     #[test]
-    fn c_terminus_is_deprotonated_above_pka() {
+    fn c_terminus_is_deprotonated_at_and_above_pka() {
         assert!(c_terminus_is_deprotonated(Some(7.4)));
         assert!(c_terminus_is_deprotonated(Some(4.0)));
+        assert!(c_terminus_is_deprotonated(Some(C_TERM_PKA)));
         assert!(c_terminus_is_deprotonated(None));
     }
 
@@ -2514,6 +2515,26 @@ mod tests {
     fn c_terminus_is_protonated_below_pka() {
         assert!(!c_terminus_is_deprotonated(Some(2.0)));
         assert!(!c_terminus_is_deprotonated(Some(3.0)));
+        assert!(!c_terminus_is_deprotonated(Some(C_TERM_PKA - 0.1)));
+    }
+
+    #[test]
+    fn n_terminus_is_protonated_at_and_below_pka() {
+        assert!(n_term_is_protonated(Some(7.0)));
+        assert!(n_term_is_protonated(Some(N_TERM_PKA)));
+        assert!(n_term_is_protonated(None));
+    }
+
+    #[test]
+    fn n_terminus_is_deprotonated_above_pka() {
+        assert!(!n_term_is_protonated(Some(9.0)));
+        assert!(!n_term_is_protonated(Some(N_TERM_PKA + 0.1)));
+    }
+
+    #[test]
+    fn c_term_protonation_boundary_is_exclusive() {
+        assert!(c_terminus_is_deprotonated(Some(C_TERM_PKA)));
+        assert!(!c_term_is_protonated(Some(C_TERM_PKA)));
     }
 
     #[test]
