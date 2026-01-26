@@ -412,3 +412,37 @@ fn select_neutral_his(
         HisStrategy::HbNetwork => optimize_his_network(residue, acceptor_grid, self_indices),
     }
 }
+
+/// Determines the best histidine tautomer by inspecting nearby hydrogen-bond acceptors.
+///
+/// Computes hypothetical H-bond scores for both ND1 (HID) and NE2 (HIE) protonation
+/// and returns the tautomer with the higher score.
+///
+/// # Arguments
+///
+/// * `residue` - Histidine residue to evaluate.
+/// * `acceptor_grid` - Optional spatial grid of hydrogen bond acceptors.
+/// * `self_indices` - Tuple of (chain_idx, residue_idx) for the current residue.
+///
+/// # Returns
+///
+/// `"HID"` or `"HIE"` depending on which tautomer has a better H-bonding score.
+fn optimize_his_network(
+    residue: &Residue,
+    acceptor_grid: Option<&Grid<(usize, usize)>>,
+    self_indices: (usize, usize),
+) -> String {
+    let grid = match acceptor_grid {
+        Some(g) => g,
+        None => return "HIE".to_string(),
+    };
+
+    let score_hid = calculate_h_bond_score(residue, "ND1", "CG", "CE1", grid, self_indices);
+    let score_hie = calculate_h_bond_score(residue, "NE2", "CD2", "CE1", grid, self_indices);
+
+    if score_hid > score_hie {
+        "HID".to_string()
+    } else {
+        "HIE".to_string()
+    }
+}
