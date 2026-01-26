@@ -2,7 +2,7 @@
 //!
 //! This module inspects residue templates, predicts protonation states from pH or hydrogen
 //! bonding networks, relabels residues accordingly, and rebuilds missing hydrogens while
-//! respecting polymer termini, nucleic acid priming, and disulfide bridges.
+//! respecting polymer termini, nucleic acid priming, disulfide bridges, and salt bridges.
 
 use crate::db;
 use crate::model::{
@@ -18,8 +18,20 @@ use nalgebra::{Matrix3, Rotation3, Vector3};
 use rand::Rng;
 use std::collections::HashSet;
 
-/// Maximum sulfur–sulfur distance (Å) used to detect disulfide bridges.
-const DISULFIDE_SG_THRESHOLD: f64 = 2.2;
+/// Henderson–Hasselbalch breakpoint for histidine double-protonation (HIP).
+const HIS_HIP_PKA: f64 = 6.0;
+/// Henderson–Hasselbalch breakpoint for aspartate protonation (ASH).
+const ASP_PKA: f64 = 3.9;
+/// Henderson–Hasselbalch breakpoint for glutamate protonation (GLH).
+const GLU_PKA: f64 = 4.2;
+/// Henderson–Hasselbalch breakpoint for lysine deprotonation (LYN).
+const LYS_PKA: f64 = 10.5;
+/// Henderson–Hasselbalch breakpoint for arginine deprotonation (ARN).
+const ARG_PKA: f64 = 12.5;
+/// Henderson–Hasselbalch breakpoint for cysteine deprotonation (CYM).
+const CYS_PKA: f64 = 8.3;
+/// Henderson–Hasselbalch breakpoint for tyrosine deprotonation (TYM).
+const TYR_PKA: f64 = 10.0;
 /// Henderson–Hasselbalch breakpoint for protonated N-termini.
 const N_TERM_PKA: f64 = 8.0;
 /// Henderson–Hasselbalch breakpoint for protonated C-termini.
