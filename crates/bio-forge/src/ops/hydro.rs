@@ -716,3 +716,40 @@ fn n_term_is_protonated(target_ph: Option<f64>) -> bool {
 fn c_term_is_protonated(target_ph: Option<f64>) -> bool {
     effective_terminal_ph(target_ph) < C_TERM_PKA
 }
+
+/// Rebuilds the N-terminal amine hydrogens using tetrahedral geometry.
+fn construct_n_term_hydrogens(residue: &mut Residue, protonated: bool) -> Result<(), Error> {
+    residue.remove_atom("H");
+    residue.remove_atom("H1");
+    residue.remove_atom("H2");
+    residue.remove_atom("H3");
+
+    let n_pos = residue
+        .atom("N")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "N"))?
+        .pos;
+    let ca_pos = residue
+        .atom("CA")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "CA"))?
+        .pos;
+
+    let (x, y, z) = build_sp3_frame(n_pos, ca_pos, None);
+
+    let theta = SP3_ANGLE.to_radians();
+    let sin_theta = theta.sin();
+    let cos_theta = theta.cos();
+
+    let phases = [0.0_f64, 120.0, 240.0];
+    let target_count = if protonated { 3 } else { 2 };
+    let names = ["H1", "H2", "H3"];
+
+    for (idx, phase) in phases.iter().take(target_count).enumerate() {
+        let phi = phase.to_radians();
+        let h_local = Vector3::new(sin_theta * phi.cos(), sin_theta * phi.sin(), -cos_theta);
+        let h_global = x * h_local.x + y * h_local.y + z * h_local.z;
+        let h_pos = n_pos + h_global * NH_BOND_LENGTH;
+        residue.add_atom(Atom::new(names[idx], Element::H, h_pos));
+    }
+
+    Ok(())
+}
