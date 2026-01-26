@@ -800,7 +800,6 @@ fn construct_c_term_hydrogen(residue: &mut Residue, protonated: bool) -> Result<
     );
 
     residue.add_atom(Atom::new("HOXT", Element::H, h_pos));
-
     Ok(())
 }
 
@@ -834,6 +833,35 @@ fn construct_3_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
     );
 
     residue.add_atom(Atom::new("HO3'", Element::H, h_pos));
+    Ok(())
+}
 
+/// Adds the 5'-terminal hydroxyl hydrogen for nucleic acid residues lacking phosphates.
+fn construct_5_prime_hydrogen(residue: &mut Residue) -> Result<(), Error> {
+    if residue.has_atom("HO5'") {
+        return Ok(());
+    }
+
+    let o5_pos = residue
+        .atom("O5'")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "O5'"))?
+        .pos;
+    let c5_pos = residue
+        .atom("C5'")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "C5'"))?
+        .pos;
+
+    let reference_pos = residue.atom("C4'").map(|a| a.pos);
+
+    let h_pos = place_hydroxyl_hydrogen(
+        o5_pos,
+        c5_pos,
+        reference_pos,
+        OH_BOND_LENGTH,
+        SP3_ANGLE,
+        180.0,
+    );
+
+    residue.add_atom(Atom::new("HO5'", Element::H, h_pos));
     Ok(())
 }
