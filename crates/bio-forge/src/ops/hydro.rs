@@ -2493,4 +2493,28 @@ mod tests {
             "default should enable salt bridge detection"
         );
     }
+
+    #[test]
+    fn effective_terminal_ph_returns_target_when_set() {
+        assert_eq!(effective_terminal_ph(Some(5.5)), 5.5);
+        assert_eq!(effective_terminal_ph(Some(9.0)), 9.0);
+    }
+
+    #[test]
+    fn effective_terminal_ph_returns_default_when_unset() {
+        assert_eq!(effective_terminal_ph(None), DEFAULT_TERMINAL_PH);
+    }
+
+    #[test]
+    fn c_terminus_is_deprotonated_above_pka() {
+        assert!(c_terminus_is_deprotonated(Some(7.4)));
+        assert!(c_terminus_is_deprotonated(Some(4.0)));
+        assert!(c_terminus_is_deprotonated(None));
+    }
+
+    #[test]
+    fn c_terminus_is_protonated_below_pka() {
+        assert!(!c_terminus_is_deprotonated(Some(2.0)));
+        assert!(!c_terminus_is_deprotonated(Some(3.0)));
+    }
 }
