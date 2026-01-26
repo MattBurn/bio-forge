@@ -49,11 +49,12 @@ export function StepHydro() {
       {/* pH setting */}
       <Input
         label="Target pH"
+        description="Omit to preserve original residue names (no auto-protonation)"
         type="number"
         step="0.1"
         min={0}
         max={14}
-        placeholder="Leave empty for neutral"
+        placeholder="Leave empty to preserve names"
         value={config.targetPh ?? ""}
         onChange={(e) =>
           setConfig({
