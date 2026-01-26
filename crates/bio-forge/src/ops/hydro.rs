@@ -125,12 +125,13 @@ pub enum HisStrategy {
 pub fn add_hydrogens(structure: &mut Structure, config: &HydroConfig) -> Result<(), Error> {
     mark_disulfide_bridges(structure);
 
-    let acceptor_grid =
-        if config.his_strategy == HisStrategy::HbNetwork && config.target_ph.is_some() {
-            Some(build_acceptor_grid(structure))
-        } else {
-            None
-        };
+    let acceptor_grid = if config.his_strategy == HisStrategy::HbNetwork
+        && config.target_ph.is_some_and(|ph| ph >= HIS_HIP_PKA)
+    {
+        Some(build_acceptor_grid(structure))
+    } else {
+        None
+    };
 
     if config.target_ph.is_some() {
         apply_non_his_protonation(structure, config.target_ph.unwrap());
