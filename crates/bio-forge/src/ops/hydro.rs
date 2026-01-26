@@ -99,14 +99,20 @@ pub enum HisStrategy {
 
 /// Adds hydrogens to all standard residues in-place, updating protonation states when needed.
 ///
-/// Disulfide bridges are detected prior to titration and preserved by relabeling cysteines to
-/// `CYX`. Residues lacking required anchor atoms will trigger descriptive errors so upstream
-/// cleanup steps can correct the issues.
+/// This function implements a multi-phase pipeline:
+///
+/// 1. **Disulfide detection** — Identifies CYS pairs forming S-S bonds and relabels to CYX.
+/// 2. **Non-HIS protonation** — Applies pKa-based titration to ASP, GLU, LYS, ARG, CYS, TYR
+///    (only when `target_ph` is specified).
+/// 3. **HIS protonation** — Determines HIS state via pH thresholds, salt bridge detection,
+///    and tautomer strategy.
+/// 4. **Hydrogen construction** — Builds hydrogens according to template geometry and
+///    terminal-specific rules.
 ///
 /// # Arguments
 ///
 /// * `structure` - Mutable structure whose residues will be protonated and hydrated.
-/// * `config` - Hydrogenation configuration, including pH target and histidine strategy.
+/// * `config` - Hydrogenation configuration controlling pH, strategy, and options.
 ///
 /// # Returns
 ///
