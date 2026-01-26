@@ -55,26 +55,30 @@ const COOH_BOND_LENGTH: f64 = 0.97;
 
 /// Parameters controlling hydrogen addition behavior.
 ///
-/// `HydroConfig` can target a specific solution pH, remove pre-existing hydrogens, and
-/// choose how neutral histidine tautomers are assigned.
+/// `HydroConfig` can target a specific solution pH, remove pre-existing hydrogens,
+/// choose how neutral histidine tautomers are assigned, and enable/disable salt bridge detection.
 #[derive(Debug, Clone)]
 pub struct HydroConfig {
     /// Optional solvent pH value used for titration decisions.
     pub target_ph: Option<f64>,
     /// Whether to strip all existing hydrogens before reconstruction.
     pub remove_existing_h: bool,
-    /// Strategy for setting neutral histidine tautomer labels.
+    /// Strategy for selecting neutral histidine tautomers (HID/HIE).
     pub his_strategy: HisStrategy,
+    /// Whether to protonate histidine to HIP when forming salt bridges with
+    /// nearby carboxylate groups (ASP⁻/GLU⁻/C-terminal COO⁻).
+    pub his_salt_bridge_protonation: bool,
 }
 
 impl Default for HydroConfig {
     /// Provides biologically reasonable defaults (physiological pH, removal of old hydrogens,
-    /// and hydrogen-bond-aware histidine selection).
+    /// hydrogen-bond-aware histidine selection, and HIS salt bridge detection).
     fn default() -> Self {
         Self {
             target_ph: None,
             remove_existing_h: true,
             his_strategy: HisStrategy::HbNetwork,
+            his_salt_bridge_protonation: true,
         }
     }
 }
