@@ -333,3 +333,49 @@ fn determine_his_protonation(
         self_indices,
     ))
 }
+
+/// Detects if a histidine forms a salt bridge with nearby carboxylate groups.
+///
+/// Checks if either ND1 or NE2 nitrogen is within [`SALT_BRIDGE_DISTANCE`] of
+/// any carboxylate oxygen in the grid.
+///
+/// # Arguments
+///
+/// * `residue` - Histidine residue to evaluate.
+/// * `carboxylate_grid` - Spatial grid of carboxylate oxygen positions.
+/// * `self_indices` - Tuple of (chain_idx, residue_idx) for the current residue.
+///
+/// # Returns
+///
+/// `true` if a salt bridge is detected, `false` otherwise.
+fn his_forms_salt_bridge(
+    residue: &Residue,
+    carboxylate_grid: &Grid<(usize, usize)>,
+    self_indices: (usize, usize),
+) -> bool {
+    // Check ND1
+    if let Some(nd1) = residue.atom("ND1") {
+        for (_, &idx) in carboxylate_grid
+            .neighbors(&nd1.pos, SALT_BRIDGE_DISTANCE)
+            .exact()
+        {
+            if idx != self_indices {
+                return true;
+            }
+        }
+    }
+
+    // Check NE2
+    if let Some(ne2) = residue.atom("NE2") {
+        for (_, &idx) in carboxylate_grid
+            .neighbors(&ne2.pos, SALT_BRIDGE_DISTANCE)
+            .exact()
+        {
+            if idx != self_indices {
+                return true;
+            }
+        }
+    }
+
+    false
+}
