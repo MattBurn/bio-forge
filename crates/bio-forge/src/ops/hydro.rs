@@ -2316,4 +2316,150 @@ mod tests {
             "C-OXT-HOXT angle {c_oxt_hoxt_angle:.1}° should be ~{SP3_ANGLE}°"
         );
     }
+
+    #[test]
+    fn five_prime_phosphate_deprotonated_at_physiological_ph() {
+        let residue = five_prime_residue_with_phosphate(60);
+        let mut structure = structure_with_residue(residue);
+
+        add_hydrogens(&mut structure, &HydroConfig::default()).unwrap();
+
+        let residue = structure.find_residue("A", 60, None).unwrap();
+        assert!(residue.has_atom("OP3"), "OP3 should remain");
+        assert!(
+            !residue.has_atom("HOP3"),
+            "HOP3 should not exist at neutral pH"
+        );
+        assert!(
+            !residue.has_atom("HOP2"),
+            "HOP2 should not exist at neutral pH"
+        );
+    }
+
+    #[test]
+    fn five_prime_phosphate_protonated_below_pka() {
+        let residue = five_prime_residue_with_phosphate(61);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(5.5),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let residue = structure.find_residue("A", 61, None).unwrap();
+        assert!(residue.has_atom("OP3"), "OP3 should remain");
+        assert!(
+            residue.has_atom("HOP3"),
+            "HOP3 should be added below pKa 6.5"
+        );
+    }
+
+    #[test]
+    fn five_prime_without_phosphate_gets_ho5() {
+        let residue = five_prime_residue_without_phosphate(62);
+        let mut structure = structure_with_residue(residue);
+
+        add_hydrogens(&mut structure, &HydroConfig::default()).unwrap();
+
+        let residue = structure.find_residue("A", 62, None).unwrap();
+        assert!(
+            residue.has_atom("HO5'"),
+            "HO5' should be added for 5'-OH terminus"
+        );
+        assert!(!residue.has_atom("P"), "phosphorus should not exist");
+    }
+
+    #[test]
+    fn five_prime_ho5_has_tetrahedral_geometry() {
+        let residue = five_prime_residue_without_phosphate(80);
+        let mut structure = structure_with_residue(residue);
+
+        add_hydrogens(&mut structure, &HydroConfig::default()).unwrap();
+
+        let residue = structure.find_residue("A", 80, None).unwrap();
+        let c5 = residue.atom("C5'").expect("C5'").pos;
+        let o5 = residue.atom("O5'").expect("O5'").pos;
+        let ho5 = residue.atom("HO5'").expect("HO5'").pos;
+
+        let o5_ho5_dist = distance(o5, ho5);
+        assert!(
+            (o5_ho5_dist - OH_BOND_LENGTH).abs() < 0.1,
+            "O5'-HO5' distance {o5_ho5_dist:.3} should be ~{OH_BOND_LENGTH} Å"
+        );
+
+        let c5_o5_ho5_angle = angle_deg(c5, o5, ho5);
+        assert!(
+            (c5_o5_ho5_angle - SP3_ANGLE).abs() < 5.0,
+            "C5'-O5'-HO5' angle {c5_o5_ho5_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+    }
+
+    #[test]
+    fn five_prime_phosphate_hop3_has_tetrahedral_geometry() {
+        let residue = five_prime_residue_with_phosphate(82);
+        let mut structure = structure_with_residue(residue);
+        let config = HydroConfig {
+            target_ph: Some(5.5),
+            ..HydroConfig::default()
+        };
+
+        add_hydrogens(&mut structure, &config).unwrap();
+
+        let residue = structure.find_residue("A", 82, None).unwrap();
+        let p = residue.atom("P").expect("P").pos;
+        let op3 = residue.atom("OP3").expect("OP3").pos;
+        let hop3 = residue.atom("HOP3").expect("HOP3").pos;
+
+        let op3_hop3_dist = distance(op3, hop3);
+        assert!(
+            (op3_hop3_dist - OH_BOND_LENGTH).abs() < 0.1,
+            "OP3-HOP3 distance {op3_hop3_dist:.3} should be ~{OH_BOND_LENGTH} Å"
+        );
+
+        let p_op3_hop3_angle = angle_deg(p, op3, hop3);
+        assert!(
+            (p_op3_hop3_angle - SP3_ANGLE).abs() < 5.0,
+            "P-OP3-HOP3 angle {p_op3_hop3_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+    }
+
+    #[test]
+    fn three_prime_nucleic_gets_ho3() {
+        let residue = three_prime_residue(70);
+        let mut structure = structure_with_residue(residue);
+
+        add_hydrogens(&mut structure, &HydroConfig::default()).unwrap();
+
+        let residue = structure.find_residue("A", 70, None).unwrap();
+        assert!(
+            residue.has_atom("HO3'"),
+            "HO3' should be added for 3' terminal"
+        );
+    }
+
+    #[test]
+    fn three_prime_ho3_has_tetrahedral_geometry() {
+        let residue = three_prime_residue(81);
+        let mut structure = structure_with_residue(residue);
+
+        add_hydrogens(&mut structure, &HydroConfig::default()).unwrap();
+
+        let residue = structure.find_residue("A", 81, None).unwrap();
+        let c3 = residue.atom("C3'").expect("C3'").pos;
+        let o3 = residue.atom("O3'").expect("O3'").pos;
+        let ho3 = residue.atom("HO3'").expect("HO3'").pos;
+
+        let o3_ho3_dist = distance(o3, ho3);
+        assert!(
+            (o3_ho3_dist - OH_BOND_LENGTH).abs() < 0.1,
+            "O3'-HO3' distance {o3_ho3_dist:.3} should be ~{OH_BOND_LENGTH} Å"
+        );
+
+        let c3_o3_ho3_angle = angle_deg(c3, o3, ho3);
+        assert!(
+            (c3_o3_ho3_angle - SP3_ANGLE).abs() < 5.0,
+            "C3'-O3'-HO3' angle {c3_o3_ho3_angle:.1}° should be ~{SP3_ANGLE}°"
+        );
+    }
 }
