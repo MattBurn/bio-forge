@@ -946,3 +946,53 @@ fn reconstruct_geometry(
 
     Ok(rot * target_tmpl_pos + trans)
 }
+
+/// Builds an sp³ local coordinate frame centered at `center` with primary axis along
+/// `center - attached`.
+fn build_sp3_frame(
+    center: Point,
+    attached: Point,
+    reference: Option<Point>,
+) -> (Vector3<f64>, Vector3<f64>, Vector3<f64>) {
+    let z = (center - attached).normalize();
+
+    let ref_vec = reference
+        .map(|r| (r - attached).normalize())
+        .unwrap_or_else(|| {
+            if z.x.abs() < z.y.abs() && z.x.abs() < z.z.abs() {
+                Vector3::x()
+            } else if z.y.abs() < z.z.abs() {
+                Vector3::y()
+            } else {
+                Vector3::z()
+            }
+        });
+
+    let x = (ref_vec - z * z.dot(&ref_vec)).normalize();
+    let y = z.cross(&x);
+
+    (x, y, z)
+}
+
+/// Places a hydroxyl hydrogen using sp³ tetrahedral geometry.
+fn place_hydroxyl_hydrogen(
+    o_pos: Point,
+    attached_pos: Point,
+    reference_pos: Option<Point>,
+    bond_length: f64,
+    bond_angle: f64,
+    dihedral_offset: f64,
+) -> Point {
+    let (x, y, z) = build_sp3_frame(o_pos, attached_pos, reference_pos);
+
+    let theta = bond_angle.to_radians();
+    let phi = dihedral_offset.to_radians();
+
+    let sin_theta = theta.sin();
+    let cos_theta = theta.cos();
+
+    let h_local = Vector3::new(sin_theta * phi.cos(), sin_theta * phi.sin(), -cos_theta);
+    let h_global = x * h_local.x + y * h_local.y + z * h_local.z;
+
+    o_pos + h_global * bond_length
+}
