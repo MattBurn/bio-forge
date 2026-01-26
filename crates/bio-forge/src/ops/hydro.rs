@@ -1043,3 +1043,174 @@ fn calculate_transform(r_pts: &[Point], t_pts: &[Point]) -> Option<(Matrix3<f64>
     let trans = r_center - rot * t_center;
     Some((rot, trans))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{
+        atom::Atom,
+        chain::Chain,
+        residue::Residue,
+        types::{Element, Point, ResidueCategory, ResiduePosition, StandardResidue},
+    };
+
+    fn residue_from_template(name: &str, std: StandardResidue, id: i32) -> Residue {
+        let template = db::get_template(name).unwrap_or_else(|| panic!("missing template {name}"));
+        let mut residue = Residue::new(id, None, name, Some(std), ResidueCategory::Standard);
+        residue.position = ResiduePosition::Internal;
+        for (atom_name, element, pos) in template.heavy_atoms() {
+            residue.add_atom(Atom::new(atom_name, element, pos));
+        }
+        residue
+    }
+
+    fn structure_with_residue(residue: Residue) -> Structure {
+        let mut chain = Chain::new("A");
+        chain.add_residue(residue);
+        let mut structure = Structure::new();
+        structure.add_chain(chain);
+        structure
+    }
+
+    fn structure_with_residues(residues: Vec<Residue>) -> Structure {
+        let mut chain = Chain::new("A");
+        for residue in residues {
+            chain.add_residue(residue);
+        }
+        let mut structure = Structure::new();
+        structure.add_chain(chain);
+        structure
+    }
+
+    fn n_terminal_residue(id: i32) -> Residue {
+        let mut residue = residue_from_template("ALA", StandardResidue::ALA, id);
+        residue.position = ResiduePosition::NTerminal;
+        residue
+    }
+
+    fn c_terminal_residue(id: i32) -> Residue {
+        let mut residue = residue_from_template("ALA", StandardResidue::ALA, id);
+        residue.position = ResiduePosition::CTerminal;
+        let c_pos = residue.atom("C").expect("C atom").pos;
+        let o_pos = residue.atom("O").expect("O atom").pos;
+        let offset = c_pos - o_pos;
+        let oxt_pos = c_pos + offset;
+        residue.add_atom(Atom::new("OXT", Element::O, oxt_pos));
+        residue
+    }
+
+    fn five_prime_residue_with_phosphate(id: i32) -> Residue {
+        let template = db::get_template("DA").unwrap();
+        let mut residue = Residue::new(
+            id,
+            None,
+            "DA",
+            Some(StandardResidue::DA),
+            ResidueCategory::Standard,
+        );
+        residue.position = ResiduePosition::FivePrime;
+        for (atom_name, element, pos) in template.heavy_atoms() {
+            residue.add_atom(Atom::new(atom_name, element, pos));
+        }
+        let p_pos = residue.atom("P").unwrap().pos;
+        let op1_pos = residue.atom("OP1").unwrap().pos;
+        let op2_pos = residue.atom("OP2").unwrap().pos;
+        let o5_pos = residue.atom("O5'").unwrap().pos;
+        let centroid = (op1_pos.coords + op2_pos.coords + o5_pos.coords) / 3.0;
+        let direction = (p_pos.coords - centroid).normalize();
+        let op3_pos = p_pos + direction * 1.48;
+        residue.add_atom(Atom::new("OP3", Element::O, op3_pos));
+        residue
+    }
+
+    fn five_prime_residue_without_phosphate(id: i32) -> Residue {
+        let template = db::get_template("DA").unwrap();
+        let mut residue = Residue::new(
+            id,
+            None,
+            "DA",
+            Some(StandardResidue::DA),
+            ResidueCategory::Standard,
+        );
+        residue.position = ResiduePosition::FivePrime;
+        for (atom_name, element, pos) in template.heavy_atoms() {
+            if !matches!(atom_name, "P" | "OP1" | "OP2") {
+                residue.add_atom(Atom::new(atom_name, element, pos));
+            }
+        }
+        residue
+    }
+
+    fn three_prime_residue(id: i32) -> Residue {
+        let template = db::get_template("DA").unwrap();
+        let mut residue = Residue::new(
+            id,
+            None,
+            "DA",
+            Some(StandardResidue::DA),
+            ResidueCategory::Standard,
+        );
+        residue.position = ResiduePosition::ThreePrime;
+        for (atom_name, element, pos) in template.heavy_atoms() {
+            residue.add_atom(Atom::new(atom_name, element, pos));
+        }
+        residue
+    }
+
+    fn his_near_asp(his_id: i32, asp_id: i32, distance: f64) -> Structure {
+        let his = residue_from_template("HID", StandardResidue::HIS, his_id);
+        let mut asp = residue_from_template("ASP", StandardResidue::ASP, asp_id);
+
+        let his_nd1 = his.atom("ND1").expect("ND1").pos;
+        let asp_od1 = asp.atom("OD1").expect("OD1").pos;
+        let offset = his_nd1 + Vector3::new(distance, 0.0, 0.0) - asp_od1;
+        for atom in asp.iter_atoms_mut() {
+            atom.translate_by(&offset);
+        }
+
+        structure_with_residues(vec![his, asp])
+    }
+
+    fn his_near_glu(his_id: i32, glu_id: i32, distance: f64) -> Structure {
+        let his = residue_from_template("HID", StandardResidue::HIS, his_id);
+        let mut glu = residue_from_template("GLU", StandardResidue::GLU, glu_id);
+
+        let his_ne2 = his.atom("NE2").expect("NE2").pos;
+        let glu_oe1 = glu.atom("OE1").expect("OE1").pos;
+        let offset = his_ne2 + Vector3::new(distance, 0.0, 0.0) - glu_oe1;
+        for atom in glu.iter_atoms_mut() {
+            atom.translate_by(&offset);
+        }
+
+        structure_with_residues(vec![his, glu])
+    }
+
+    fn his_near_c_term(his_id: i32, c_term_id: i32, distance: f64) -> Structure {
+        let his = residue_from_template("HID", StandardResidue::HIS, his_id);
+        let mut c_term = c_terminal_residue(c_term_id);
+
+        let his_nd1 = his.atom("ND1").expect("ND1").pos;
+        let c_term_oxt = c_term.atom("OXT").expect("OXT").pos;
+        let offset = his_nd1 + Vector3::new(distance, 0.0, 0.0) - c_term_oxt;
+        for atom in c_term.iter_atoms_mut() {
+            atom.translate_by(&offset);
+        }
+
+        structure_with_residues(vec![his, c_term])
+    }
+
+    fn his_isolated(id: i32) -> Structure {
+        let his = residue_from_template("HID", StandardResidue::HIS, id);
+        structure_with_residue(his)
+    }
+
+    fn distance(a: Point, b: Point) -> f64 {
+        (a - b).norm()
+    }
+
+    fn angle_deg(a: Point, center: Point, b: Point) -> f64 {
+        let v1 = (a - center).normalize();
+        let v2 = (b - center).normalize();
+        v1.dot(&v2).clamp(-1.0, 1.0).acos().to_degrees()
+    }
+}
