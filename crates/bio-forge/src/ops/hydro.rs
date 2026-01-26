@@ -753,3 +753,53 @@ fn construct_n_term_hydrogens(residue: &mut Residue, protonated: bool) -> Result
 
     Ok(())
 }
+
+/// Rebuilds the carboxylate proton at the C-terminus when protonated.
+fn construct_c_term_hydrogen(residue: &mut Residue, protonated: bool) -> Result<(), Error> {
+    if !protonated {
+        residue.remove_atom("HOXT");
+        residue.remove_atom("HXT");
+        return Ok(());
+    }
+
+    residue.remove_atom("HXT");
+    if residue.has_atom("HOXT") {
+        return Ok(());
+    }
+
+    let c_pos = residue
+        .atom("C")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "C"))?
+        .pos;
+    let oxt_pos = residue
+        .atom("OXT")
+        .ok_or_else(|| Error::incomplete_for_hydro(&*residue.name, residue.id, "OXT"))?
+        .pos;
+
+    let c_oxt_dist = (oxt_pos - c_pos).norm();
+    if c_oxt_dist < 1e-6 {
+        return Err(Error::incomplete_for_hydro(
+            &*residue.name,
+            residue.id,
+            "OXT",
+        ));
+    }
+
+    let reference_pos = residue
+        .atom("CA")
+        .or_else(|| residue.atom("O"))
+        .map(|a| a.pos);
+
+    let h_pos = place_hydroxyl_hydrogen(
+        oxt_pos,
+        c_pos,
+        reference_pos,
+        COOH_BOND_LENGTH,
+        SP3_ANGLE,
+        60.0,
+    );
+
+    residue.add_atom(Atom::new("HOXT", Element::H, h_pos));
+
+    Ok(())
+}
