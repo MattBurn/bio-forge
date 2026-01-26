@@ -446,3 +446,72 @@ fn optimize_his_network(
         "HIE".to_string()
     }
 }
+
+/// Calculates a geometric score for a potential hydrogen bond from an sp² nitrogen.
+///
+/// The score considers both distance (< 2.7 Å) and angle (> 90°) criteria for
+/// valid hydrogen bonds.
+///
+/// # Arguments
+///
+/// * `residue` - Histidine residue containing the nitrogen.
+/// * `n_name` - Name of the nitrogen atom (e.g., "ND1" or "NE2").
+/// * `c1_name` - Name of the first carbon anchor atom.
+/// * `c2_name` - Name of the second carbon anchor atom.
+/// * `grid` - Spatial grid of potential acceptor atoms.
+/// * `self_idx` - Tuple of (chain_idx, residue_idx) for the current residue.
+///
+/// # Returns
+///
+/// Hydrogen bond score as a floating-point value.
+fn calculate_h_bond_score(
+    residue: &Residue,
+    n_name: &str,
+    c1_name: &str,
+    c2_name: &str,
+    grid: &Grid<(usize, usize)>,
+    self_idx: (usize, usize),
+) -> f64 {
+    let n = match residue.atom(n_name) {
+        Some(a) => a,
+        None => return 0.0,
+    };
+    let c1 = match residue.atom(c1_name) {
+        Some(a) => a,
+        None => return 0.0,
+    };
+    let c2 = match residue.atom(c2_name) {
+        Some(a) => a,
+        None => return 0.0,
+    };
+
+    let v1 = (c1.pos - n.pos).normalize();
+    let v2 = (c2.pos - n.pos).normalize();
+    let bisector = (v1 + v2).normalize();
+    let h_dir = -bisector;
+    let h_pos = n.pos + h_dir;
+
+    let mut score = 0.0;
+
+    for (a_pos, &idx) in grid.neighbors(&n.pos, 3.5).exact() {
+        if idx == self_idx {
+            continue;
+        }
+
+        let h_a_vec = a_pos - h_pos;
+        let dist_sq = h_a_vec.norm_squared();
+
+        if dist_sq > 2.7 * 2.7 {
+            continue;
+        }
+
+        let h_a_dir = h_a_vec.normalize();
+        let cos_theta = h_dir.dot(&h_a_dir);
+
+        if cos_theta > 0.0 {
+            score += (1.0 / dist_sq) * (cos_theta * cos_theta);
+        }
+    }
+
+    score
+}
