@@ -125,8 +125,19 @@ pub enum HisStrategy {
 pub fn add_hydrogens(structure: &mut Structure, config: &HydroConfig) -> Result<(), Error> {
     mark_disulfide_bridges(structure);
 
-    let acceptor_grid = if config.his_strategy == HisStrategy::HbNetwork {
-        Some(build_acceptor_grid(structure))
+    let acceptor_grid =
+        if config.his_strategy == HisStrategy::HbNetwork && config.target_ph.is_some() {
+            Some(build_acceptor_grid(structure))
+        } else {
+            None
+        };
+
+    if config.target_ph.is_some() {
+        apply_non_his_protonation(structure, config.target_ph.unwrap());
+    }
+
+    let carboxylate_grid = if config.his_salt_bridge_protonation {
+        Some(build_carboxylate_grid(structure, config.target_ph))
     } else {
         None
     };
@@ -143,15 +154,16 @@ pub fn add_hydrogens(structure: &mut Structure, config: &HydroConfig) -> Result<
                         return Ok(());
                     }
 
-                    let new_name = determine_protonation_state(
-                        residue,
-                        config,
-                        acceptor_grid.as_ref(),
-                        Some((c_idx, r_idx)),
-                    );
-
-                    if let Some(name) = new_name {
-                        residue.name = name.into();
+                    if residue.standard_name == Some(StandardResidue::HIS) {
+                        if let Some(new_name) = determine_his_protonation(
+                            residue,
+                            config,
+                            acceptor_grid.as_ref(),
+                            carboxylate_grid.as_ref(),
+                            (c_idx, r_idx),
+                        ) {
+                            residue.name = new_name.into();
+                        }
                     }
 
                     if config.remove_existing_h {
