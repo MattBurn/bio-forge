@@ -2462,4 +2462,35 @@ mod tests {
             "C3'-O3'-HO3' angle {c3_o3_ho3_angle:.1}° should be ~{SP3_ANGLE}°"
         );
     }
+
+    #[test]
+    fn hydro_config_defaults_to_no_ph() {
+        let config = HydroConfig::default();
+        assert!(config.target_ph.is_none(), "default should have no pH");
+    }
+
+    #[test]
+    fn hydro_config_defaults_to_remove_existing_h() {
+        let config = HydroConfig::default();
+        assert!(config.remove_existing_h, "default should remove existing H");
+    }
+
+    #[test]
+    fn hydro_config_defaults_to_hb_network_strategy() {
+        let config = HydroConfig::default();
+        assert_eq!(
+            config.his_strategy,
+            HisStrategy::HbNetwork,
+            "default should use HbNetwork"
+        );
+    }
+
+    #[test]
+    fn hydro_config_defaults_to_salt_bridge_enabled() {
+        let config = HydroConfig::default();
+        assert!(
+            config.his_salt_bridge_protonation,
+            "default should enable salt bridge detection"
+        );
+    }
 }
