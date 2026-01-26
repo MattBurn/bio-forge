@@ -379,3 +379,36 @@ fn his_forms_salt_bridge(
 
     false
 }
+
+/// Selects a neutral histidine tautomer using the configured strategy.
+///
+/// # Arguments
+///
+/// * `residue` - Histidine residue to evaluate.
+/// * `strategy` - Strategy for selecting the tautomer.
+/// * `acceptor_grid` - Optional spatial grid of hydrogen bond acceptors.
+/// * `self_indices` - Tuple of (chain_idx, residue_idx) for the current residue.
+///
+/// # Returns
+///
+/// `"HID"` or `"HIE"` depending on the selected tautomer.
+fn select_neutral_his(
+    residue: &Residue,
+    strategy: HisStrategy,
+    acceptor_grid: Option<&Grid<(usize, usize)>>,
+    self_indices: (usize, usize),
+) -> String {
+    match strategy {
+        HisStrategy::DirectHID => "HID".to_string(),
+        HisStrategy::DirectHIE => "HIE".to_string(),
+        HisStrategy::Random => {
+            let mut rng = rand::rng();
+            if rng.random_bool(0.5) {
+                "HID".to_string()
+            } else {
+                "HIE".to_string()
+            }
+        }
+        HisStrategy::HbNetwork => optimize_his_network(residue, acceptor_grid, self_indices),
+    }
+}
