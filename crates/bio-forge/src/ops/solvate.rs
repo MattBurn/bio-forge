@@ -508,8 +508,6 @@ fn replace_with_ions(
 
     water_indices.shuffle(rng);
 
-    // const SALT_CONCENTRATION_M: f64 = 0.15;
-
     // Add neutral ions to achieve desired salt concentration
     match config.salt_concentration {
         Some(salt_concentration) => {
