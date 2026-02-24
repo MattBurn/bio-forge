@@ -538,13 +538,20 @@ fn replace_with_ions(
     // Add ions to reach target charge
     while (charge_diff - total_ion_charge(&ion_plan)) != 0 {
         let ion = if (charge_diff - total_ion_charge(&ion_plan)) < 0 {
-            Ion::Anion(*config.anions.choose(rng).expect("Required "))
+            Ion::Anion(
+                *config
+                    .choose_random_anion(rng)
+                    .ok_or(Error::IonizationFailed {
+                        details: "No anions configured".to_string(),
+                    })?,
+            )
         } else {
             Ion::Cation(
                 *config
-                    .cations
-                    .choose(rng)
-                    .expect("checked non-empty cation list"),
+                    .choose_random_cation(rng)
+                    .ok_or(Error::IonizationFailed {
+                        details: "No cations configured".to_string(),
+                    })?,
             )
         };
 
